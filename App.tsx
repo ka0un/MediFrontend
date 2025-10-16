@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon } from './components/Icons';
 import PatientManagement from './components/PatientManagement';
@@ -69,13 +68,20 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
     );
 };
 
-const Dashboard = () => (
+const Dashboard = ({ setActiveView }: { setActiveView: (view: View) => void }) => (
     <div className="text-center">
         <h1 className="text-4xl font-bold text-slate-800">Welcome to MediSystem</h1>
         <p className="mt-4 text-lg text-slate-600">Select an option from the sidebar to manage your healthcare services.</p>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {navItems.filter(i => i.id !== 'dashboard').map(item => (
-                 <div key={item.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer">
+                 <div
+                    key={item.id}
+                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer"
+                    onClick={() => setActiveView(item.id as View)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) => e.key === 'Enter' && setActiveView(item.id as View)}
+                >
                     <item.icon className="h-12 w-12 text-primary mx-auto" />
                     <h3 className="mt-4 text-xl font-semibold">{item.label}</h3>
                  </div>
@@ -101,7 +107,7 @@ export default function App() {
 
     const renderView = () => {
         switch (activeView) {
-            case 'dashboard': return <Dashboard />;
+            case 'dashboard': return <Dashboard setActiveView={setActiveView} />;
             case 'patients': return <PatientManagement addNotification={addNotification} />;
             case 'appointments': return <AppointmentManagement addNotification={addNotification} />;
             case 'reports': return <ReportsDashboard addNotification={addNotification}/>;
