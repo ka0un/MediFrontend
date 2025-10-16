@@ -1,0 +1,184 @@
+
+import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, Prescription, AddPrescriptionPayload } from '../types';
+
+const BASE_URL = 'http://localhost:8080/api';
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  }
+  if (response.headers.get('Content-Type')?.includes('application/json')) {
+    return response.json();
+  }
+  // For non-JSON responses like 204 No Content
+  return undefined as T;
+}
+
+async function handleFileResponse(response: Response, defaultFilename: string) {
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = defaultFilename;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch && filenameMatch.length > 1) {
+            filename = filenameMatch[1];
+        }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+}
+
+// UC-01: Appointment Management
+export const getProviders = (specialty?: string): Promise<HealthcareProvider[]> => {
+  const url = new URL(`${BASE_URL}/appointments/providers`);
+  if (specialty) url.searchParams.append('specialty', specialty);
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(url.toString()).then(res => handleResponse(res));
+};
+
+export const getTimeSlots = (providerId: number, date: string): Promise<TimeSlot[]> => {
+  const url = new URL(`${BASE_URL}/appointments/timeslots`);
+  url.searchParams.append('providerId', providerId.toString());
+  url.searchParams.append('date', date);
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(url.toString()).then(res => handleResponse(res));
+};
+
+export const bookAppointment = (data: { patientId: number; providerId: number; timeSlotId: number }): Promise<Appointment> => {
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(`${BASE_URL}/appointments/book`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(res => handleResponse(res));
+};
+
+export const processPayment = (data: PaymentData): Promise<Appointment> => {
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(`${BASE_URL}/appointments/payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(res => handleResponse(res));
+};
+
+export const getAppointmentByConfirmation = (confirmationNumber: string): Promise<Appointment> => {
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(`${BASE_URL}/appointments/confirmation/${confirmationNumber}`).then(res => handleResponse(res));
+};
+
+export const getPatientAppointments = (patientId: number): Promise<Appointment[]> => {
+  // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+  return fetch(`${BASE_URL}/appointments/patient/${patientId}`).then(res => handleResponse(res));
+};
+
+// UC-02: Patient Account Management
+export const createPatient = (patientData: Omit<Patient, 'id'>): Promise<Patient> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/patients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientData)
+    }).then(res => handleResponse(res));
+};
+
+export const getPatient = (patientId: number): Promise<Patient> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/patients/${patientId}`).then(res => handleResponse(res));
+};
+
+export const getAllPatients = (): Promise<Patient[]> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/patients`).then(res => handleResponse(res));
+};
+
+export const updatePatient = (patientId: number, patientData: Partial<Omit<Patient, 'id' | 'digitalHealthCardNumber'>>): Promise<Patient> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/patients/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientData)
+    }).then(res => handleResponse(res));
+};
+
+export const deletePatient = (patientId: number): Promise<void> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/patients/${patientId}`, {
+        method: 'DELETE'
+    }).then(res => handleResponse(res));
+};
+
+// UC-03: Statistical Reports
+export const getStatisticalReport = (filters: ReportFilters): Promise<StatisticalReport> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value as string);
+    });
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/reports?${params.toString()}`).then(res => handleResponse(res));
+};
+
+export const exportReport = (format: 'PDF' | 'CSV', filters: ReportFilters) => {
+    return fetch(`${BASE_URL}/reports/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format, filters })
+    }).then(res => handleFileResponse(res, `report.${format.toLowerCase()}`));
+};
+
+
+// UC-04: Medical Records Access
+export const scanDigitalHealthCard = (cardNumber: string, staffId: string, purpose: string): Promise<MedicalRecord> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/medical-records/scan-card`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardNumber, staffId, purpose })
+    }).then(res => handleResponse(res));
+};
+
+export const getMedicalRecordByPatientId = (patientId: number, staffId?: string, purpose?: string): Promise<MedicalRecord> => {
+    const params = new URLSearchParams();
+    if(staffId) params.append('staffId', staffId);
+    if(purpose) params.append('purpose', purpose);
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/medical-records/${patientId}?${params.toString()}`).then(res => handleResponse(res));
+};
+
+export const addPrescription = (data: AddPrescriptionPayload): Promise<MedicalRecord> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/medical-records/prescriptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...data,
+            prescribedBy: data.staffId,
+        }),
+    }).then(res => handleResponse(res));
+};
+
+export const downloadMedicalRecordsPDF = (patientId: number, staffId?: string, purpose?: string) => {
+    const params = new URLSearchParams();
+    if (staffId) params.append('staffId', staffId);
+    if (purpose) params.append('purpose', purpose);
+    return fetch(`${BASE_URL}/medical-records/${patientId}/download?${params.toString()}`)
+        .then(res => handleFileResponse(res, `medical_record_${patientId}.pdf`));
+};
+
+export const getAccessLogs = (patientId: number): Promise<AccessLog[]> => {
+    // FIX: Use an arrow function to help TypeScript infer the generic type for handleResponse.
+    return fetch(`${BASE_URL}/medical-records/${patientId}/access-logs`).then(res => handleResponse(res));
+};
