@@ -203,15 +203,15 @@ export default function App() {
     const { user, login, register, logout, loading } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
-    const addNotification = (type: 'success' | 'error', message: string) => {
+    const removeNotification = useCallback((id: number) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    }, []);
+
+    const addNotification = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setNotifications(prev => [...prev, { id, type, message }]);
         setTimeout(() => removeNotification(id), 5000);
-    };
-
-    const removeNotification = (id: number) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    };
+    }, [removeNotification]);
 
     if (loading) {
         return <div className="flex h-screen items-center justify-center">Loading...</div>;

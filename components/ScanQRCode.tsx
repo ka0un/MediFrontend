@@ -17,26 +17,20 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Using refs to hold the scanner instance and its state to avoid issues with stale closures in callbacks.
     const scannerRef = useRef<any>(null);
-    const isScanningRef = useRef(false);
     const readerElementId = "qr-reader";
 
-    const stopScanner = useCallback(async () => {
-        try {
-            if (scannerRef.current && isScanningRef.current) {
-                await scannerRef.current.stop();
-                isScanningRef.current = false;
+    const onScanSuccess = useCallback(async (decodedText: string) => {
+        if (scannerRef.current) {
+            // State 2 corresponds to 'SCANNING'. Check before trying to stop.
+            if (scannerRef.current.getState() === 2) { 
+                try {
+                    await scannerRef.current.stop();
+                } catch (err) {
+                    console.error("Error stopping scanner on success:", err);
+                }
             }
-        } catch (err) {
-            console.error("Failed to stop scanner gracefully.", err);
-            // Even if stopping fails, we mark it as not scanning to allow restart attempts.
-            isScanningRef.current = false;
         }
-    }, []);
-
-    const onScanSuccess = useCallback(async (decodedText: string, decodedResult: any) => {
-        await stopScanner();
         
         setIsLoading(true);
         setError(null);
@@ -50,66 +44,56 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
         } finally {
             setIsLoading(false);
         }
-    }, [addNotification, stopScanner]);
+    }, [addNotification]);
 
-    const onScanFailure = (errorMessage: string) => {
-        // This callback is called frequently, so we typically ignore it to avoid spamming logs.
-    };
-    
-    const startScanner = useCallback(() => {
-        if (!scannerRef.current || isScanningRef.current) {
+    useEffect(() => {
+        if (!window.Html5Qrcode) {
+            setError("QR Code scanning library failed to load. Please refresh the page.");
             return;
         }
 
-        try {
-            isScanningRef.current = true;
-            scannerRef.current.start(
-                { facingMode: "environment" },
-                {
-                    fps: 10,
-                    qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        // FIX: Enforce a minimum size of 50px for the qrbox to prevent library errors.
-                        const qrboxSize = Math.max(50, Math.floor(minEdge * 0.8));
-                        return { width: qrboxSize, height: qrboxSize };
-                    }
-                },
-                onScanSuccess,
-                onScanFailure
-            ).catch((err: any) => {
-                setError("Could not start QR scanner. Please grant camera permissions and refresh the page.");
-                console.error("Scanner start error:", err);
-                isScanningRef.current = false; // Reset state on failure
-            });
-        } catch (err) {
-            setError("An unexpected error occurred while trying to start the scanner.");
-            console.error("Scanner start exception:", err);
-            isScanningRef.current = false;
+        // Initialize scanner instance on first render
+        if (!scannerRef.current) {
+            scannerRef.current = new window.Html5Qrcode(readerElementId);
         }
-    }, [onScanSuccess]);
+        const scanner = scannerRef.current;
 
-
-    useEffect(() => {
-        if (window.Html5Qrcode) {
-            if (!scannerRef.current) {
-                // Initialize the scanner instance only once.
-                scannerRef.current = new window.Html5Qrcode(readerElementId);
+        const config = {
+            fps: 10,
+            qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const qrboxSize = Math.max(50, Math.floor(minEdge * 0.8));
+                return { width: qrboxSize, height: qrboxSize };
             }
-            
-            // Start scanning only if there's no appointment displayed.
-            if (!scannedAppointment) {
-                 startScanner();
-            }
-        } else {
-            console.error("Html5Qrcode library not loaded.");
-            setError("QR Code scanning library failed to load. Please refresh the page.");
-        }
-
-        // Cleanup function to stop the scanner when the component unmounts.
-        return () => {
-           stopScanner();
         };
-    }, [scannedAppointment, startScanner, stopScanner]);
+
+        // Start scanning only if no appointment is currently displayed
+        if (!scannedAppointment) {
+            // State 2 is SCANNING. If not scanning, start it.
+            if (scanner.getState() !== 2) {
+                 scanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    (errorMessage: string) => { /* ignore failures */ }
+                ).catch((err: any) => {
+                    setError("Could not start QR scanner. Please grant camera permissions and refresh the page.");
+                    console.error("Scanner start error:", err);
+                });
+            }
+        }
+
+        // Cleanup function to stop the scanner when the component unmounts or state changes
+        return () => {
+            if (scannerRef.current && scannerRef.current.getState() === 2) {
+                try {
+                    scannerRef.current.stop();
+                } catch (err) {
+                    console.error("Failed to stop scanner on cleanup.", err);
+                }
+            }
+        };
+    }, [scannedAppointment, onScanSuccess]);
     
     const handleUpdateStatus = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -133,7 +117,7 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const resetScanner = () => {
         setScannedAppointment(null);
         setError(null);
-        // The useEffect hook will automatically restart the scanner when `scannedAppointment` becomes null.
+        // The useEffect hook will handle restarting the scanner automatically.
     };
 
     return (
