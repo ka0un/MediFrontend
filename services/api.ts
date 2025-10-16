@@ -1,4 +1,4 @@
-import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus } from '../types';
+import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType } from '../types';
 
 const BASE_URL = 'http://localhost:8080/api';
 
@@ -210,5 +210,55 @@ export const updateAppointmentStatusByAdmin = (appointmentId: number, status: Ap
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
+    }).then(res => handleResponse(res));
+};
+
+// Admin Provider Management
+export const createProvider = (providerData: { name: string; specialty: string; hospitalName: string; hospitalType: HospitalType; }): Promise<HealthcareProvider> => {
+    return fetch(`${BASE_URL}/admin/providers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(providerData)
+    }).then(res => handleResponse(res));
+};
+
+export const updateProvider = (providerId: number, providerData: Partial<{ name: string; specialty: string; hospitalName: string; hospitalType: HospitalType; }>): Promise<HealthcareProvider> => {
+    return fetch(`${BASE_URL}/admin/providers/${providerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(providerData)
+    }).then(res => handleResponse(res));
+};
+
+export const deleteProvider = (providerId: number): Promise<{ message: string }> => {
+    return fetch(`${BASE_URL}/admin/providers/${providerId}`, {
+        method: 'DELETE'
+    }).then(res => handleResponse(res));
+};
+
+// Admin Time Slot Management
+export const getProviderTimeSlots = (providerId: number): Promise<TimeSlot[]> => {
+    return fetch(`${BASE_URL}/admin/providers/${providerId}/timeslots`).then(res => handleResponse(res));
+};
+
+export const createTimeSlot = (providerId: number, timeSlotData: { startTime: string; endTime: string; available: boolean }): Promise<TimeSlot> => {
+    return fetch(`${BASE_URL}/admin/providers/${providerId}/timeslots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timeSlotData)
+    }).then(res => handleResponse(res));
+};
+
+export const updateTimeSlot = (timeSlotId: number, timeSlotData: Partial<{ startTime: string; endTime: string; available: boolean }>): Promise<TimeSlot> => {
+    return fetch(`${BASE_URL}/admin/timeslots/${timeSlotId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timeSlotData)
+    }).then(res => handleResponse(res));
+};
+
+export const deleteTimeSlot = (timeSlotId: number): Promise<{ message: string }> => {
+    return fetch(`${BASE_URL}/admin/timeslots/${timeSlotId}`, {
+        method: 'DELETE'
     }).then(res => handleResponse(res));
 };

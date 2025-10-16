@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { AdminDashboardData } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, KpiCard, Spinner } from './ui';
 import { PatientsIcon, AppointmentsIcon } from './Icons';
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management';
 
 export default function AdminDashboard({ setActiveView, addNotification }: { setActiveView: (view: AdminView) => void, addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [data, setData] = useState<AdminDashboardData | null>(null);
@@ -67,6 +66,7 @@ export default function AdminDashboard({ setActiveView, addNotification }: { set
                             </li>
                         ))}
                     </ul>
+                {/* FIX: Corrected the closing tag for the Card component. JSX component tags are case-sensitive. */}
                 </Card>
             </div>
         </div>

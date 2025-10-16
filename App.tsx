@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon, LogoutIcon, QrCodeIcon } from './components/Icons';
+import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon, LogoutIcon, QrCodeIcon, StethoscopeIcon } from './components/Icons';
 import AdminDashboard from './components/AdminDashboard';
 import AdminPatients from './components/AdminPatients';
 import AdminAppointments from './components/AdminAppointments';
@@ -14,6 +14,7 @@ import { Role } from './types';
 import * as api from './services/api';
 import MyAppointments from './components/MyAppointments';
 import ScanQRCode from './components/ScanQRCode';
+import ProviderManagement from './components/ProviderManagement';
 
 
 const useAuth = () => {
@@ -65,6 +66,7 @@ const useAuth = () => {
 
 const adminNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
+    { id: 'provider-management', label: 'Providers', icon: StethoscopeIcon },
     { id: 'patients', label: 'All Patients', icon: PatientsIcon },
     { id: 'appointments', label: 'All Appointments', icon: AppointmentsIcon },
     { id: 'scan-qr', label: 'Scan Visit Card', icon: QrCodeIcon },
@@ -79,7 +81,7 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management';
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
@@ -147,6 +149,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
     const renderView = () => {
         switch (activeView) {
             case 'dashboard': return <AdminDashboard setActiveView={setActiveView} addNotification={addNotification} />;
+            case 'provider-management': return <ProviderManagement addNotification={addNotification} />;
             case 'patients': return <AdminPatients addNotification={addNotification} />;
             case 'appointments': return <AdminAppointments addNotification={addNotification} />;
             case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
