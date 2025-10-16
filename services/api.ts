@@ -1,5 +1,4 @@
-
-import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData } from '../types';
+import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus } from '../types';
 
 const BASE_URL = 'http://localhost:8080/api';
 
@@ -104,6 +103,12 @@ export const getPatientAppointments = (patientId: number): Promise<Appointment[]
   return fetch(`${BASE_URL}/appointments/patient/${patientId}`).then(res => handleResponse(res));
 };
 
+export const cancelAppointment = (appointmentId: number): Promise<{ message: string }> => {
+    return fetch(`${BASE_URL}/appointments/${appointmentId}`, {
+        method: 'DELETE'
+    }).then(res => handleResponse(res));
+};
+
 // UC-02: Patient Account Management
 export const getPatient = (patientId: number): Promise<Patient> => {
     return fetch(`${BASE_URL}/patients/${patientId}`).then(res => handleResponse(res));
@@ -197,5 +202,13 @@ export const deletePatientByAdmin = (patientId: number): Promise<{message: strin
 export const cancelAppointmentByAdmin = (appointmentId: number): Promise<{message: string}> => {
     return fetch(`${BASE_URL}/admin/appointments/${appointmentId}`, {
         method: 'DELETE'
+    }).then(res => handleResponse(res));
+};
+
+export const updateAppointmentStatusByAdmin = (appointmentId: number, status: AppointmentStatus): Promise<Appointment> => {
+    return fetch(`${BASE_URL}/admin/appointments/${appointmentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
     }).then(res => handleResponse(res));
 };

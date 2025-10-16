@@ -1,5 +1,7 @@
 {
   "name": "Smart Healthcare System",
   "description": "A modern, responsive frontend for the MediBackend API, providing a comprehensive interface for managing patient accounts, appointments, medical records, and statistical reports.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

@@ -4,7 +4,8 @@ import type { MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser } from 
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Input, Modal, Spinner } from './ui';
 
-const RecordSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+// FIX: Made children optional to handle JSX implicit children typing issues.
+const RecordSection = ({ title, children }: { title: string; children?: React.ReactNode }) => (
     <div className="mb-6">
         <h3 className="text-lg font-semibold border-b pb-2 mb-3 text-primary">{title}</h3>
         {children}

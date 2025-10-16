@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon, LogoutIcon } from './components/Icons';
+import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon, LogoutIcon, QrCodeIcon } from './components/Icons';
 import AdminDashboard from './components/AdminDashboard';
 import AdminPatients from './components/AdminPatients';
 import AdminAppointments from './components/AdminAppointments';
@@ -13,6 +12,9 @@ import Auth from './components/Auth';
 import type { Notification, AuthUser } from './types';
 import { Role } from './types';
 import * as api from './services/api';
+import MyAppointments from './components/MyAppointments';
+import ScanQRCode from './components/ScanQRCode';
+
 
 const useAuth = () => {
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -65,18 +67,20 @@ const adminNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'patients', label: 'All Patients', icon: PatientsIcon },
     { id: 'appointments', label: 'All Appointments', icon: AppointmentsIcon },
+    { id: 'scan-qr', label: 'Scan Visit Card', icon: QrCodeIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
 ];
 
 const patientNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'book-appointment', label: 'Book Appointment', icon: AppointmentsIcon },
-    { id: 'my-records', label: 'Medical Records', icon: RecordsIcon },
+    { id: 'my-appointments', label: 'My Appointments', icon: RecordsIcon },
+    { id: 'my-records', label: 'Medical Records', icon: HealthCardIcon },
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports';
-type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr';
+type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
 const Sidebar = ({ navItems, activeView, setActiveView, onLogout }: { navItems: typeof adminNavItems | typeof patientNavItems, activeView: string, setActiveView: (view: any) => void, onLogout: () => void }) => {
@@ -145,6 +149,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
             case 'dashboard': return <AdminDashboard setActiveView={setActiveView} addNotification={addNotification} />;
             case 'patients': return <AdminPatients addNotification={addNotification} />;
             case 'appointments': return <AdminAppointments addNotification={addNotification} />;
+            case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
             case 'reports': return <ReportsDashboard addNotification={addNotification} />;
             default: return <div>Select a view</div>;
         }
@@ -171,6 +176,7 @@ const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLog
         switch (activeView) {
             case 'dashboard': return <PatientDashboard user={user} setActiveView={setActiveView} />;
             case 'book-appointment': return <AppointmentManagement user={user} addNotification={addNotification} />;
+            case 'my-appointments': return <MyAppointments user={user} addNotification={addNotification} />;
             case 'my-records': return <MedicalRecords user={user} addNotification={addNotification} />;
             case 'my-account': return <PatientAccount user={user} addNotification={addNotification} />;
             default: return <div>Select a view</div>;

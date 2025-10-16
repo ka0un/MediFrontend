@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { HealthcareProvider, TimeSlot, Appointment, AuthUser } from '../types';
 import { PaymentMethod } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Modal, Input, Select } from './ui';
+import VisitingCard from './VisitingCard';
 
 const specialties = ["Cardiology", "Dermatology", "Neurology", "Pediatrics", "General Practice"];
 
@@ -191,14 +191,11 @@ export default function AppointmentManagement({ user, addNotification }: { user:
                         <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                     </div>
                     <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">Success!</h3>
-                    <div className="mt-2 px-7 py-3">
-                        <p className="text-sm text-gray-500">Your appointment is confirmed.</p>
-                        <p className="font-semibold text-gray-800 mt-2">Confirmation Number:</p>
-                        <p className="text-lg font-bold text-primary">{confirmation?.confirmationNumber}</p>
-                    </div>
-                    <div className="mt-4">
-                        <Button onClick={() => setConfirmation(null)}>Close</Button>
-                    </div>
+                    <p className="text-sm text-gray-500 mt-2 mb-4">Your appointment is confirmed. Please keep this visit card for your records.</p>
+                </div>
+                {confirmation && <VisitingCard appointment={confirmation} />}
+                <div className="mt-6 text-center">
+                    <Button onClick={() => setConfirmation(null)}>Close</Button>
                 </div>
             </Modal>
         </div>

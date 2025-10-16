@@ -2,20 +2,23 @@
 import React, { ReactNode } from 'react';
 
 interface CardProps {
-  children: ReactNode;
+  // FIX: Made children optional to handle JSX implicit children typing issues.
+  children?: ReactNode;
   className?: string;
 }
 
-export const Card = ({ children, className = '' }: CardProps) => (
+// FIX: Changed to React.FC to correctly handle props like `key`.
+export const Card: React.FC<CardProps> = ({ children, className = '' }) => (
   <div className={`bg-white shadow-md rounded-lg p-6 ${className}`}>
     {children}
   </div>
 );
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+// FIX: Changed to a type alias to correctly extend ButtonHTMLAttributes
+export type ButtonProps = {
   variant?: 'primary' | 'secondary' | 'danger';
   children: ReactNode;
-}
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export const Button = ({ children, variant = 'primary', className = '', ...props }: ButtonProps) => {
   const baseClasses = 'px-4 py-2 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200';
@@ -48,10 +51,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ label, id
   </div>
 ));
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+// FIX: Changed to a type alias to correctly extend SelectHTMLAttributes
+export type SelectProps = {
   label: string;
   children: ReactNode;
-}
+} & React.SelectHTMLAttributes<HTMLSelectElement>;
+
 
 export const Select = ({ label, id, children, ...props }: SelectProps) => (
     <div>
@@ -71,7 +76,8 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  children: ReactNode;
+  // FIX: Made children optional to handle JSX implicit children typing issues.
+  children?: ReactNode;
 }
 
 export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
@@ -100,7 +106,8 @@ export const Spinner = () => (
     </div>
 );
 
-export const PageTitle = ({ children, actions }: { children: ReactNode, actions?: ReactNode }) => (
+// FIX: Made children optional to handle JSX implicit children typing issues.
+export const PageTitle = ({ children, actions }: { children?: ReactNode, actions?: ReactNode }) => (
   <div className="flex justify-between items-center mb-6">
     <h1 className="text-3xl font-bold text-slate-800">{children}</h1>
     <div>{actions}</div>
