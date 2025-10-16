@@ -16,40 +16,61 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Using refs to hold the scanner instance and its state to avoid issues with stale closures in callbacks.
     const scannerRef = useRef<any>(null);
+    const isScanningRef = useRef(false);
+    const readerElementId = "qr-reader";
 
-    const onScanSuccess = useCallback((decodedText: string, decodedResult: any) => {
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch((err: any) => console.error("Failed to stop scanner", err));
+    const stopScanner = useCallback(async () => {
+        try {
+            if (scannerRef.current && isScanningRef.current) {
+                await scannerRef.current.stop();
+                isScanningRef.current = false;
+            }
+        } catch (err) {
+            console.error("Failed to stop scanner gracefully.", err);
+            // Even if stopping fails, we mark it as not scanning to allow restart attempts.
+            isScanningRef.current = false;
         }
+    }, []);
 
+    const onScanSuccess = useCallback(async (decodedText: string, decodedResult: any) => {
+        await stopScanner();
+        
         setIsLoading(true);
         setError(null);
-        api.getAppointmentByConfirmation(decodedText)
-            .then(data => {
-                setScannedAppointment(data);
-            })
-            .catch(err => {
-                setError(err.message || 'Failed to find appointment.');
-                addNotification('error', err.message || 'Failed to find appointment.');
-            })
-            .finally(() => setIsLoading(false));
-
-    }, [addNotification]);
+        try {
+            const data = await api.getAppointmentByConfirmation(decodedText);
+            setScannedAppointment(data);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to find appointment.';
+            setError(errorMessage);
+            addNotification('error', errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addNotification, stopScanner]);
 
     const onScanFailure = (errorMessage: string) => {
         // This callback is called frequently, so we typically ignore it to avoid spamming logs.
     };
     
     const startScanner = useCallback(() => {
-        if (scannerRef.current && !scannerRef.current.isScanning) {
+        if (!scannerRef.current || isScanningRef.current) {
+            return;
+        }
+
+        try {
+            isScanningRef.current = true;
             scannerRef.current.start(
                 { facingMode: "environment" },
                 {
                     fps: 10,
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const qrboxSize = Math.floor(minEdge * 0.7);
+                        // FIX: Enforce a minimum size of 50px for the qrbox to prevent library errors.
+                        const qrboxSize = Math.max(50, Math.floor(minEdge * 0.8));
                         return { width: qrboxSize, height: qrboxSize };
                     }
                 },
@@ -57,33 +78,38 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
                 onScanFailure
             ).catch((err: any) => {
                 setError("Could not start QR scanner. Please grant camera permissions and refresh the page.");
-                console.error("Scanner start error:", err)
+                console.error("Scanner start error:", err);
+                isScanningRef.current = false; // Reset state on failure
             });
+        } catch (err) {
+            setError("An unexpected error occurred while trying to start the scanner.");
+            console.error("Scanner start exception:", err);
+            isScanningRef.current = false;
         }
     }, [onScanSuccess]);
 
-    useEffect(() => {
-        const cleanup = () => {
-            if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch((err: any) => {
-                    console.warn("Failed to stop QR scanner on cleanup.", err);
-                });
-            }
-        };
 
-        // Check if the library is loaded before creating an instance
+    useEffect(() => {
         if (window.Html5Qrcode) {
             if (!scannerRef.current) {
-                 scannerRef.current = new window.Html5Qrcode("qr-reader");
+                // Initialize the scanner instance only once.
+                scannerRef.current = new window.Html5Qrcode(readerElementId);
             }
-            startScanner();
+            
+            // Start scanning only if there's no appointment displayed.
+            if (!scannedAppointment) {
+                 startScanner();
+            }
         } else {
             console.error("Html5Qrcode library not loaded.");
             setError("QR Code scanning library failed to load. Please refresh the page.");
         }
 
-        return cleanup;
-    }, [startScanner]);
+        // Cleanup function to stop the scanner when the component unmounts.
+        return () => {
+           stopScanner();
+        };
+    }, [scannedAppointment, startScanner, stopScanner]);
     
     const handleUpdateStatus = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -107,17 +133,23 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const resetScanner = () => {
         setScannedAppointment(null);
         setError(null);
-        // Add a small delay to allow React to re-render the DOM element before starting the scanner
-        setTimeout(() => startScanner(), 100);
+        // The useEffect hook will automatically restart the scanner when `scannedAppointment` becomes null.
     };
 
     return (
         <div>
             <PageTitle>Scan Patient Visit Card</PageTitle>
             <Card>
-                <div id="qr-reader" className={scannedAppointment || isLoading ? 'hidden' : ''} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}></div>
+                {/* The reader element is always in the DOM, but hidden when not needed. */}
+                <div id={readerElementId} className={scannedAppointment || isLoading || error ? 'hidden' : ''} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}></div>
                 
-                {error && !scannedAppointment && <p className="text-red-500 text-center mt-4">{error}</p>}
+                {error && (
+                     <div className="text-center">
+                        <p className="text-red-500 text-center mt-4">{error}</p>
+                        <Button onClick={resetScanner} className="mt-4">Try Again</Button>
+                    </div>
+                )}
+
                 {isLoading && <Spinner />}
 
                 {scannedAppointment && !isLoading && (
