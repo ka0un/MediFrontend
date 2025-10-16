@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
-import type { MedicalRecord, AccessLog, AddPrescriptionPayload } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser } from '../types';
 import * as api from '../services/api';
-import { PageTitle, Card, Button, Input, Modal } from './ui';
-import { HealthCardIcon } from './Icons';
+import { PageTitle, Card, Button, Input, Modal, Spinner } from './ui';
 
 const RecordSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div className="mb-6">
@@ -12,8 +11,7 @@ const RecordSection = ({ title, children }: { title: string; children: React.Rea
     </div>
 );
 
-export default function MedicalRecords({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
-    const [cardNumber, setCardNumber] = useState('');
+export default function MedicalRecords({ user, addNotification }: { user: AuthUser, addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [record, setRecord] = useState<MedicalRecord | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'record' | 'logs'>('record');
@@ -21,12 +19,15 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
     
     const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
 
-    const handleScanCard = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const fetchRecord = useCallback(async () => {
+        if (!user.patientId) {
+            addNotification('error', 'No patient associated with this account.');
+            return;
+        }
         setIsLoading(true);
         setRecord(null);
         try {
-            const data = await api.scanDigitalHealthCard(cardNumber, 'STAFF-UI-001', 'General consultation from UI');
+            const data = await api.getMedicalRecordByPatientId(user.patientId, user.username, 'Patient viewing own record');
             setRecord(data);
             setActiveTab('record');
         } catch (error) {
@@ -34,7 +35,12 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user, addNotification]);
+
+    useEffect(() => {
+        // Automatically fetch records when the component mounts for the first time.
+        fetchRecord();
+    }, [fetchRecord]);
     
     const handleViewLogs = async () => {
         if (!record) return;
@@ -50,13 +56,14 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
     const handleDownloadPdf = async () => {
         if (!record) return;
         try {
-            await api.downloadMedicalRecordsPDF(record.patientId, 'STAFF-UI-001', 'Patient copy from UI');
+            await api.downloadMedicalRecordsPDF(record.patientId, user.username, 'Patient downloading own copy');
             addNotification('success', 'Medical record PDF download started.');
         } catch (error) {
             addNotification('error', 'Failed to download PDF.');
         }
     };
     
+    // Note: In a real app, patients shouldn't add their own prescriptions. This is kept for demo purposes.
     const handleAddPrescription = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if(!record) return;
@@ -64,7 +71,7 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
         const formData = new FormData(e.currentTarget);
         const prescriptionData: AddPrescriptionPayload = {
             patientId: record.patientId,
-            staffId: "DR-UI-001",
+            staffId: "SELF-ADDED", // Indicating patient added it
             diagnosis: formData.get('diagnosis') as string,
             treatment: formData.get('treatment') as string,
             notes: formData.get('notes') as string,
@@ -84,17 +91,16 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
 
     return (
         <div>
-            <PageTitle>Medical Records</PageTitle>
-            <Card className="mb-6">
-                <form onSubmit={handleScanCard} className="flex items-end space-x-2">
-                    <div className="flex-grow">
-                        <Input label="Scan Digital Health Card" id="cardNumber" value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="e.g., DHC-2025-001" />
-                    </div>
-                    <Button type="submit" disabled={isLoading || !cardNumber}>
-                        {isLoading ? 'Loading...' : 'Access Records'}
-                    </Button>
-                </form>
-            </Card>
+            <PageTitle>My Medical Records</PageTitle>
+
+            {isLoading && <Spinner />}
+
+            {!isLoading && !record && (
+                <Card className="text-center">
+                    <p className="mb-4">Could not load your medical records. Please try again.</p>
+                    <Button onClick={fetchRecord}>Reload Records</Button>
+                </Card>
+            )}
 
             {record && (
                 <Card>
@@ -106,7 +112,7 @@ export default function MedicalRecords({ addNotification }: { addNotification: (
                         </div>
                         <div className="flex space-x-2">
                             <Button variant="secondary" onClick={handleDownloadPdf}>Download PDF</Button>
-                            <Button variant="secondary" onClick={() => setIsPrescriptionModalOpen(true)}>Add Prescription</Button>
+                            <Button variant="secondary" onClick={() => setIsPrescriptionModalOpen(true)}>Add Prescription Note</Button>
                         </div>
                     </div>
                     

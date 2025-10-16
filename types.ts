@@ -24,6 +24,19 @@ export enum AccessType {
     DOWNLOAD = 'DOWNLOAD'
 }
 
+export enum Role {
+    ADMIN = 'ADMIN',
+    PATIENT = 'PATIENT',
+}
+
+export interface AuthUser {
+    userId: number;
+    username: string;
+    role: Role;
+    patientId: number | null;
+}
+
+
 export interface Patient {
   id: number;
   name: string;
@@ -106,6 +119,14 @@ export interface StatisticalReport {
     message?: string;
 }
 
+export interface AdminDashboardData {
+    totalPatients: number;
+    totalAppointments: number;
+    recentPatients: Patient[];
+    recentAppointments: Appointment[];
+}
+
+
 export interface ReportFilters {
     hospital?: string;
     department?: string;
@@ -138,7 +159,6 @@ export interface Prescription {
     followUpDate: string | null;
 }
 
-// FIX: Moved AddPrescriptionPayload from services/api.ts to types.ts to be shared across modules.
 export type AddPrescriptionPayload = Omit<Prescription, 'id' | 'prescribedBy' | 'prescriptionDate'> & { patientId: number; staffId: string; };
 
 export interface TestResult {

@@ -1,24 +1,20 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-// FIX: Correctly import PaymentMethod as a value for use with enums, not just as a type.
-import type { HealthcareProvider, TimeSlot, Patient, Appointment } from '../types';
-import { PaymentMethod, HospitalType } from '../types';
+import type { HealthcareProvider, TimeSlot, Appointment, AuthUser } from '../types';
+import { PaymentMethod } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Modal, Input, Select } from './ui';
-import { AppointmentsIcon, ChevronDownIcon } from './Icons';
 
 const specialties = ["Cardiology", "Dermatology", "Neurology", "Pediatrics", "General Practice"];
 
-export default function AppointmentManagement({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
+export default function AppointmentManagement({ user, addNotification }: { user: AuthUser, addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [providers, setProviders] = useState<HealthcareProvider[]>([]);
-    const [patients, setPatients] = useState<Patient[]>([]);
     const [selectedProvider, setSelectedProvider] = useState<HealthcareProvider | null>(null);
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [specialtyFilter, setSpecialtyFilter] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
-    const [bookingPatientId, setBookingPatientId] = useState<string>('');
     const [bookingTimeSlot, setBookingTimeSlot] = useState<TimeSlot | null>(null);
     const [appointmentToPay, setAppointmentToPay] = useState<Appointment | null>(null);
 
@@ -38,8 +34,7 @@ export default function AppointmentManagement({ addNotification }: { addNotifica
     
     useEffect(() => {
         fetchProviders();
-        api.getAllPatients().then(setPatients).catch(() => addNotification('error', 'Failed to fetch patients list.'));
-    }, [fetchProviders, addNotification]);
+    }, [fetchProviders]);
 
     const handleSelectProvider = async (provider: HealthcareProvider) => {
         setSelectedProvider(provider);
@@ -67,13 +62,13 @@ export default function AppointmentManagement({ addNotification }: { addNotifica
     };
 
     const handleBookAppointment = async () => {
-        if (!bookingPatientId || !selectedProvider || !bookingTimeSlot) {
-            addNotification('error', 'Please select a patient and time slot.');
+        if (!user.patientId || !selectedProvider || !bookingTimeSlot) {
+            addNotification('error', 'An unexpected error occurred. Missing information.');
             return;
         }
         try {
             const result = await api.bookAppointment({
-                patientId: Number(bookingPatientId),
+                patientId: user.patientId,
                 providerId: selectedProvider.id,
                 timeSlotId: bookingTimeSlot.id,
             });
@@ -86,7 +81,6 @@ export default function AppointmentManagement({ addNotification }: { addNotifica
                 addNotification('success', `Appointment confirmed! Confirmation #: ${result.confirmationNumber}`);
             }
             setBookingTimeSlot(null);
-            setBookingPatientId('');
         } catch (error) {
             addNotification('error', error instanceof Error ? error.message : 'Failed to book appointment');
         }
@@ -166,15 +160,9 @@ export default function AppointmentManagement({ addNotification }: { addNotifica
             {/* Booking Modal */}
             <Modal isOpen={!!bookingTimeSlot} onClose={() => setBookingTimeSlot(null)} title="Confirm Booking">
                 <p>You are booking an appointment with <strong>{selectedProvider?.name}</strong> on <strong>{new Date(selectedDate).toDateString()}</strong> at <strong>{bookingTimeSlot && new Date(bookingTimeSlot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>.</p>
-                <div className="mt-4">
-                    <Select label="Select Patient" value={bookingPatientId} onChange={e => setBookingPatientId(e.target.value)}>
-                        <option value="">-- Select a Patient --</option>
-                        {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </Select>
-                </div>
                 <div className="flex justify-end space-x-2 mt-6">
                     <Button variant="secondary" onClick={() => setBookingTimeSlot(null)}>Cancel</Button>
-                    <Button onClick={handleBookAppointment}>Book</Button>
+                    <Button onClick={handleBookAppointment}>Book For {user.username}</Button>
                 </div>
             </Modal>
 

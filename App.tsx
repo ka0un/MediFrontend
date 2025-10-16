@@ -1,25 +1,87 @@
-import React, { useState } from 'react';
-import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon } from './components/Icons';
-import PatientManagement from './components/PatientManagement';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { DashboardIcon, PatientsIcon, AppointmentsIcon, RecordsIcon, ReportsIcon, HealthCardIcon, LogoutIcon } from './components/Icons';
+import AdminDashboard from './components/AdminDashboard';
+import AdminPatients from './components/AdminPatients';
+import AdminAppointments from './components/AdminAppointments';
+import PatientDashboard from './components/PatientDashboard';
+import PatientAccount from './components/PatientAccount';
 import AppointmentManagement from './components/AppointmentManagement';
 import ReportsDashboard from './components/ReportsDashboard';
 import MedicalRecords from './components/MedicalRecords';
-import type { Notification } from './types';
+import Auth from './components/Auth';
+import type { Notification, AuthUser } from './types';
+import { Role } from './types';
+import * as api from './services/api';
 
-type View = 'dashboard' | 'patients' | 'appointments' | 'records' | 'reports';
+const useAuth = () => {
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [loading, setLoading] = useState(true);
 
-const navItems = [
+    useEffect(() => {
+        try {
+            const storedUser = localStorage.getItem('auth');
+            if (storedUser) {
+                setUser(JSON.parse(storedUser));
+            }
+        } catch (error) {
+            console.error("Failed to parse auth data from localStorage", error);
+            localStorage.removeItem('auth');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const login = useCallback(async (credentials: {username: string, password: string}) => {
+        const userData = await api.login(credentials);
+        localStorage.setItem('auth', JSON.stringify(userData));
+        setUser(userData);
+        return userData;
+    }, []);
+
+    const register = useCallback(async (data: any) => {
+        const userData = await api.register(data);
+        localStorage.setItem('auth', JSON.stringify(userData));
+        setUser(userData);
+        return userData;
+    }, []);
+
+    const logout = useCallback(async () => {
+        try {
+            await api.logout();
+        } catch (error) {
+            console.error("Logout API call failed, proceeding with client-side logout.", error);
+        } finally {
+            localStorage.removeItem('auth');
+            setUser(null);
+        }
+    }, []);
+
+    return { user, login, register, logout, loading };
+};
+
+
+const adminNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { id: 'patients', label: 'Patients', icon: PatientsIcon },
-    { id: 'appointments', label: 'Appointments', icon: AppointmentsIcon },
-    { id: 'records', label: 'Medical Records', icon: RecordsIcon },
+    { id: 'patients', label: 'All Patients', icon: PatientsIcon },
+    { id: 'appointments', label: 'All Appointments', icon: AppointmentsIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
-] as const;
+];
+
+const patientNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
+    { id: 'book-appointment', label: 'Book Appointment', icon: AppointmentsIcon },
+    { id: 'my-records', label: 'Medical Records', icon: RecordsIcon },
+    { id: 'my-account', label: 'My Account', icon: PatientsIcon },
+];
+
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports';
+type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account';
 
 
-const Sidebar = ({ activeView, setActiveView }: { activeView: View, setActiveView: (view: View) => void }) => {
+const Sidebar = ({ navItems, activeView, setActiveView, onLogout }: { navItems: typeof adminNavItems | typeof patientNavItems, activeView: string, setActiveView: (view: any) => void, onLogout: () => void }) => {
     return (
-        <aside className="w-64 bg-white text-slate-800 flex flex-col shadow-lg">
+        <aside className="w-64 bg-white text-slate-800 flex flex-col shadow-lg flex-shrink-0">
             <div className="flex items-center justify-center h-20 border-b-2 border-slate-100">
                 <HealthCardIcon className="h-8 w-8 text-primary"/>
                 <h1 className="text-2xl font-bold ml-2">MediSystem</h1>
@@ -29,7 +91,7 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: View, setActiveVie
                     <a
                         key={item.id}
                         href="#"
-                        onClick={(e) => { e.preventDefault(); setActiveView(item.id as View); }}
+                        onClick={(e) => { e.preventDefault(); setActiveView(item.id); }}
                         className={`flex items-center px-4 py-3 my-2 rounded-lg transition-colors duration-200 ${
                             activeView === item.id ? 'bg-primary text-white shadow-md' : 'hover:bg-primary-50 hover:text-primary-600'
                         }`}
@@ -39,18 +101,24 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: View, setActiveVie
                     </a>
                 ))}
             </nav>
+            <div className="px-4 py-4 border-t-2 border-slate-100">
+                <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); onLogout(); }}
+                    className="flex items-center px-4 py-3 my-2 rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-600"
+                >
+                    <LogoutIcon className="h-5 w-5" />
+                    <span className="ml-4 font-medium">Logout</span>
+                </a>
+            </div>
         </aside>
     );
 };
 
-const Header = ({ activeView }: { activeView: View }) => {
-    const title = navItems.find(item => item.id === activeView)?.label || 'Dashboard';
+const Header = ({ title }: { title: string }) => {
     return (
-        <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8">
+        <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8 flex-shrink-0">
             <h2 className="text-2xl font-semibold text-slate-700 capitalize">{title}</h2>
-            <div>
-                {/* User Profile / Actions can go here */}
-            </div>
         </header>
     );
 };
@@ -68,31 +136,62 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
     );
 };
 
-const Dashboard = ({ setActiveView }: { setActiveView: (view: View) => void }) => (
-    <div className="text-center">
-        <h1 className="text-4xl font-bold text-slate-800">Welcome to MediSystem</h1>
-        <p className="mt-4 text-lg text-slate-600">Select an option from the sidebar to manage your healthcare services.</p>
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {navItems.filter(i => i.id !== 'dashboard').map(item => (
-                 <div
-                    key={item.id}
-                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer"
-                    onClick={() => setActiveView(item.id as View)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && setActiveView(item.id as View)}
-                >
-                    <item.icon className="h-12 w-12 text-primary mx-auto" />
-                    <h3 className="mt-4 text-xl font-semibold">{item.label}</h3>
-                 </div>
-            ))}
-        </div>
-    </div>
-);
+const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+    const [activeView, setActiveView] = useState<AdminView>('dashboard');
+    const title = adminNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
 
+    const renderView = () => {
+        switch (activeView) {
+            case 'dashboard': return <AdminDashboard setActiveView={setActiveView} addNotification={addNotification} />;
+            case 'patients': return <AdminPatients addNotification={addNotification} />;
+            case 'appointments': return <AdminAppointments addNotification={addNotification} />;
+            case 'reports': return <ReportsDashboard addNotification={addNotification} />;
+            default: return <div>Select a view</div>;
+        }
+    };
+
+    return (
+        <div className="flex h-screen bg-slate-100">
+            <Sidebar navItems={adminNavItems} activeView={activeView} setActiveView={setActiveView} onLogout={onLogout} />
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <Header title={title} />
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 p-8">
+                    {renderView()}
+                </main>
+            </div>
+        </div>
+    );
+};
+
+const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+    const [activeView, setActiveView] = useState<PatientView>('dashboard');
+    const title = patientNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
+    
+    const renderView = () => {
+        switch (activeView) {
+            case 'dashboard': return <PatientDashboard user={user} setActiveView={setActiveView} />;
+            case 'book-appointment': return <AppointmentManagement user={user} addNotification={addNotification} />;
+            case 'my-records': return <MedicalRecords user={user} addNotification={addNotification} />;
+            case 'my-account': return <PatientAccount user={user} addNotification={addNotification} />;
+            default: return <div>Select a view</div>;
+        }
+    };
+
+     return (
+        <div className="flex h-screen bg-slate-100">
+            <Sidebar navItems={patientNavItems} activeView={activeView} setActiveView={setActiveView} onLogout={onLogout} />
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <Header title={title} />
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 p-8">
+                    {renderView()}
+                </main>
+            </div>
+        </div>
+    );
+};
 
 export default function App() {
-    const [activeView, setActiveView] = useState<View>('dashboard');
+    const { user, login, register, logout, loading } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
     const addNotification = (type: 'success' | 'error', message: string) => {
@@ -105,27 +204,20 @@ export default function App() {
         setNotifications(prev => prev.filter(n => n.id !== id));
     };
 
-    const renderView = () => {
-        switch (activeView) {
-            case 'dashboard': return <Dashboard setActiveView={setActiveView} />;
-            case 'patients': return <PatientManagement addNotification={addNotification} />;
-            case 'appointments': return <AppointmentManagement addNotification={addNotification} />;
-            case 'reports': return <ReportsDashboard addNotification={addNotification}/>;
-            case 'records': return <MedicalRecords addNotification={addNotification} />;
-            default: return <div>Select a view</div>;
-        }
-    };
+    if (loading) {
+        return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    }
 
     return (
-        <div className="flex h-screen bg-slate-100">
+        <>
             <NotificationArea notifications={notifications} removeNotification={removeNotification} />
-            <Sidebar activeView={activeView} setActiveView={setActiveView} />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <Header activeView={activeView} />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 p-8">
-                    {renderView()}
-                </main>
-            </div>
-        </div>
+            {!user ? (
+                <Auth onLogin={login} onRegister={register} addNotification={addNotification} />
+            ) : user.role === Role.ADMIN ? (
+                <AdminApp user={user} onLogout={logout} addNotification={addNotification} />
+            ) : (
+                <PatientApp user={user} onLogout={logout} addNotification={addNotification} />
+            )}
+        </>
     );
 }
