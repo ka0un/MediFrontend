@@ -4,7 +4,12 @@ import { AppointmentStatus } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Modal, Spinner, Select } from './ui';
 
-declare const Html5Qrcode: any;
+// Add Html5Qrcode to the Window interface for TypeScript to recognize it
+declare global {
+    interface Window {
+        Html5Qrcode: any;
+    }
+}
 
 export default function ScanQRCode({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [scannedAppointment, setScannedAppointment] = useState<Appointment | null>(null);
@@ -58,16 +63,26 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     }, [onScanSuccess]);
 
     useEffect(() => {
-        if (!scannerRef.current) {
-             scannerRef.current = new Html5Qrcode("qr-reader");
-        }
-        startScanner();
-
-        return () => {
+        const cleanup = () => {
             if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch((err: any) => console.error("Failed to stop scanner on cleanup", err));
+                scannerRef.current.stop().catch((err: any) => {
+                    console.warn("Failed to stop QR scanner on cleanup.", err);
+                });
             }
         };
+
+        // Check if the library is loaded before creating an instance
+        if (window.Html5Qrcode) {
+            if (!scannerRef.current) {
+                 scannerRef.current = new window.Html5Qrcode("qr-reader");
+            }
+            startScanner();
+        } else {
+            console.error("Html5Qrcode library not loaded.");
+            setError("QR Code scanning library failed to load. Please refresh the page.");
+        }
+
+        return cleanup;
     }, [startScanner]);
     
     const handleUpdateStatus = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -92,14 +107,15 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const resetScanner = () => {
         setScannedAppointment(null);
         setError(null);
-        startScanner();
+        // Add a small delay to allow React to re-render the DOM element before starting the scanner
+        setTimeout(() => startScanner(), 100);
     };
 
     return (
         <div>
             <PageTitle>Scan Patient Visit Card</PageTitle>
             <Card>
-                <div id="qr-reader" className={scannedAppointment ? 'hidden' : ''} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}></div>
+                <div id="qr-reader" className={scannedAppointment || isLoading ? 'hidden' : ''} style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}></div>
                 
                 {error && !scannedAppointment && <p className="text-red-500 text-center mt-4">{error}</p>}
                 {isLoading && <Spinner />}

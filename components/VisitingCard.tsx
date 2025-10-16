@@ -3,15 +3,21 @@ import type { Appointment } from '../types';
 import { Card } from './ui';
 import { HealthCardIcon } from './Icons';
 
-declare const QRCode: any;
+// Add QRCode to the Window interface for TypeScript to recognize it
+declare global {
+    interface Window {
+        QRCode: any;
+    }
+}
 
 export default function VisitingCard({ appointment }: { appointment: Appointment }) {
     const qrRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        if (qrRef.current && appointment.confirmationNumber) {
-            QRCode.toCanvas(qrRef.current, appointment.confirmationNumber, { width: 128, margin: 1 }, (error: any) => {
-                if (error) console.error(error);
+        // Check if the QRCode library is loaded on the window object before using it
+        if (window.QRCode && qrRef.current && appointment.confirmationNumber) {
+            window.QRCode.toCanvas(qrRef.current, appointment.confirmationNumber, { width: 128, margin: 1 }, (error: any) => {
+                if (error) console.error("QRCode generation error:", error);
             });
         }
     }, [appointment.confirmationNumber]);
