@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, Button, Input } from './ui';
 import { QrCodeIcon } from './Icons';
 import { QRScanner } from './QRScanner';
-import { CreatePatientModal, CreatePatientData } from './CreatePatientModal';
 
 /**
  * Props interface following Interface Segregation Principle
@@ -12,7 +11,6 @@ interface PatientScannerProps {
     staffId: string;
     onScanSuccess: (cardNumber: string, purpose: string) => Promise<void>;
     onManualSearch: (patientId: string, purpose: string) => Promise<void>;
-    onCreatePatient?: (patientData: CreatePatientData) => Promise<void>;
     isLoading?: boolean;
 }
 
@@ -30,15 +28,10 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
     staffId,
     onScanSuccess,
     onManualSearch,
-    onCreatePatient,
     isLoading = false,
 }) => {
     const [patientId, setPatientId] = React.useState('');
-    const [error, setError] = React.useState('');
     const [showScanner, setShowScanner] = React.useState(false);
-    const [showCreateModal, setShowCreateModal] = React.useState(false);
-    const [notFoundCardNumber, setNotFoundCardNumber] = React.useState<string>('');
-    const [isPatientNotFound, setIsPatientNotFound] = React.useState(false);
 
     /**
      * Play success beep sound
@@ -67,112 +60,35 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
         }
     };
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-
-        // Validation
-        if (!patientId.trim()) {
-            setError('Please scan or enter a patient card number');
-            return;
-        }
-
-        try {
-            const purpose = 'Medical record access'; // Default purpose for logging
-            await onScanSuccess(patientId, purpose);
-            // Reset form on success
-            setPatientId('');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        }
-    };
-
     // Handle QR scan success
     const handleQRScanSuccess = async (decodedText: string) => {
-        try {
-            // Play beep sound for successful scan
-            playBeepSound();
-            
-            setPatientId(decodedText);
-            setShowScanner(false);
-            setError('');
-            setIsPatientNotFound(false);
-            
-            // Automatically trigger search after successful scan
-            const purpose = 'Medical record access';
-            await onScanSuccess(decodedText, purpose);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch patient record';
-            setError(errorMessage);
-            
-            // Check if error is "patient not found"
-            if (errorMessage.toLowerCase().includes('not found') || 
-                errorMessage.toLowerCase().includes('404') ||
-                errorMessage.toLowerCase().includes('no patient')) {
-                setIsPatientNotFound(true);
-                setNotFoundCardNumber(decodedText);
-            }
-        }
+        // Play beep sound for successful scan
+        playBeepSound();
+        
+        setPatientId(decodedText);
+        setShowScanner(false);
+        
+        // Automatically trigger search after successful scan
+        const purpose = 'Medical record access';
+        await onScanSuccess(decodedText, purpose);
     };
 
     // Handle QR scan error
     const handleQRScanError = (errorMessage: string) => {
-        setError(`Scanner error: ${errorMessage}`);
-        setIsPatientNotFound(false);
+        console.error('Scanner error:', errorMessage);
     };
 
-    // Handle create new patient
-    const handleCreatePatient = async (patientData: CreatePatientData) => {
-        if (!onCreatePatient) {
-            setError('Patient creation is not available');
-            return;
-        }
-
-        try {
-            await onCreatePatient(patientData);
-            setShowCreateModal(false);
-            setIsPatientNotFound(false);
-            setError('');
-            // Optionally retry the search after creating
-            if (patientData.digitalHealthCardNumber) {
-                const purpose = 'Medical record access';
-                await onScanSuccess(patientData.digitalHealthCardNumber, purpose);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create patient profile');
-            throw err; // Re-throw to let modal handle it
-        }
-    };
-
-    // Handle manual search with patient not found handling
+    // Handle manual search
     const handleManualSearchWithError = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setIsPatientNotFound(false);
 
         // Validation
         if (!patientId.trim()) {
-            setError('Please scan or enter a patient card number');
             return;
         }
 
-        try {
-            const purpose = 'Medical record access';
-            await onScanSuccess(patientId, purpose);
-            // Reset form on success
-            setPatientId('');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-            setError(errorMessage);
-            
-            // Check if error is "patient not found"
-            if (errorMessage.toLowerCase().includes('not found') || 
-                errorMessage.toLowerCase().includes('404') ||
-                errorMessage.toLowerCase().includes('no patient')) {
-                setIsPatientNotFound(true);
-                setNotFoundCardNumber(patientId);
-            }
-        }
+        const purpose = 'Medical record access';
+        await onScanSuccess(patientId, purpose);
     };
 
     return (
@@ -218,38 +134,6 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
                     />
                 </div>
 
-                {/* Error Display with Patient Not Found UI */}
-                {error && (
-                    <div className={`border px-4 py-3 rounded ${
-                        isPatientNotFound 
-                            ? 'bg-yellow-50 border-yellow-200 text-yellow-800' 
-                            : 'bg-red-50 border-red-200 text-red-700'
-                    }`}>
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <p className="font-medium">
-                                    {isPatientNotFound ? '⚠️ Patient Not Found' : '❌ Error'}
-                                </p>
-                                <p className="text-sm mt-1">{error}</p>
-                                {isPatientNotFound && (
-                                    <p className="text-sm mt-2">
-                                        Card Number: <span className="font-mono font-semibold">{notFoundCardNumber}</span>
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        {isPatientNotFound && onCreatePatient && (
-                            <Button
-                                type="button"
-                                onClick={() => setShowCreateModal(true)}
-                                className="w-full mt-3 bg-yellow-600 hover:bg-yellow-700"
-                            >
-                                ➕ Create New Patient Profile
-                            </Button>
-                        )}
-                    </div>
-                )}
-
                 {/* Submit Button */}
                 <Button
                     type="submit"
@@ -281,14 +165,6 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
                 onScanSuccess={handleQRScanSuccess}
                 onScanError={handleQRScanError}
                 onClose={() => setShowScanner(false)}
-            />
-            
-            {/* Create Patient Modal */}
-            <CreatePatientModal
-                isOpen={showCreateModal}
-                scannedCardNumber={notFoundCardNumber}
-                onClose={() => setShowCreateModal(false)}
-                onSubmit={handleCreatePatient}
             />
         </Card>
     );

@@ -135,16 +135,40 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
     return (
         <div className="fixed top-5 right-5 z-50 w-full max-w-sm">
             {notifications.map(n => (
-                <div key={n.id} className={`relative rounded-md shadow-lg p-4 mb-2 ${n.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                    <button onClick={() => removeNotification(n.id)} className="absolute top-1 right-2 text-white font-bold">&times;</button>
-                    {n.message}
+                <div 
+                    key={n.id} 
+                    className={`relative rounded-md shadow-lg p-4 mb-2 ${
+                        n.type === 'success' 
+                            ? 'bg-green-500' 
+                            : n.type === 'patient-not-found'
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                    } text-white`}
+                >
+                    <button onClick={() => removeNotification(n.id)} className="absolute top-1 right-2 text-white font-bold text-xl">&times;</button>
+                    <div className="pr-6">
+                        {n.message}
+                        {n.type === 'patient-not-found' && n.onAction && (
+                            <div className="mt-2">
+                                <span
+                                    onClick={() => {
+                                        n.onAction!();
+                                        removeNotification(n.id);
+                                    }}
+                                    className="text-white underline cursor-pointer hover:text-yellow-100 font-medium"
+                                >
+                                    Create New Patient
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>
     );
 };
 
-const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void }) => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
     const title = adminNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
 
@@ -174,7 +198,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
     );
 };
 
-const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void }) => {
     const [activeView, setActiveView] = useState<PatientView>('dashboard');
     const title = patientNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
     
@@ -210,10 +234,11 @@ export default function App() {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
 
-    const addNotification = useCallback((type: 'success' | 'error', message: string) => {
+    const addNotification = useCallback((type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => {
         const id = Date.now();
-        setNotifications(prev => [...prev, { id, type, message }]);
-        setTimeout(() => removeNotification(id), 5000);
+        setNotifications(prev => [...prev, { id, type, message, ...options }]);
+        // Auto-dismiss all notifications after 3 seconds
+        setTimeout(() => removeNotification(id), 3000);
     }, [removeNotification]);
 
     if (loading) {

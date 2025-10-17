@@ -4,7 +4,7 @@ import { PatientScanner } from './PatientScanner';
 import { PatientInfoCard } from './PatientInfoCard';
 import { MedicalRecordsDisplay } from './MedicalRecordsDisplay';
 import { useMedicalRecords } from '../hooks/useMedicalRecords';
-import { CreatePatientData } from './CreatePatientModal';
+import { CreatePatientModal, CreatePatientData } from './CreatePatientModal';
 import * as api from '../services/api';
 import type { AuthUser } from '../types';
 
@@ -13,7 +13,7 @@ import type { AuthUser } from '../types';
  */
 interface StaffMedicalRecordsProps {
     user: AuthUser;
-    addNotification: (type: 'success' | 'error', message: string) => void;
+    addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void;
 }
 
 /**
@@ -57,6 +57,8 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
 
     // State to track if staff has confirmed patient identity
     const [isIdentityConfirmed, setIsIdentityConfirmed] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [notFoundCardNumber, setNotFoundCardNumber] = useState<string>('');
 
     // Get staff ID from user (use username as staff ID for demo)
     const staffId = user.username;
@@ -70,7 +72,26 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
             setIsIdentityConfirmed(false); // Reset confirmation on new search
             addNotification('success', 'Patient record retrieved successfully');
         } catch (err) {
-            addNotification('error', err instanceof Error ? err.message : 'Failed to scan card');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to scan card';
+            
+            // Check if error is "patient not found"
+            if (errorMessage.toLowerCase().includes('not found') || 
+                errorMessage.toLowerCase().includes('404') ||
+                errorMessage.toLowerCase().includes('no patient')) {
+                // Store card number for modal
+                setNotFoundCardNumber(cardNumber);
+                
+                // Show special notification with create button
+                addNotification('patient-not-found', errorMessage, {
+                    cardNumber: cardNumber,
+                    onAction: () => setShowCreateModal(true)
+                });
+            } else {
+                // Show regular error notification
+                addNotification('error', errorMessage);
+            }
+            
+            // Don't re-throw - we've handled the error with notification
         }
     };
 
@@ -131,7 +152,15 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
     const handleCreatePatient = async (patientData: CreatePatientData) => {
         try {
             const newPatient = await api.createPatient(patientData);
+            setShowCreateModal(false);
             addNotification('success', `Patient profile created successfully! Patient ID: ${newPatient.id}`);
+            
+            // Auto-search the newly created patient
+            if (patientData.digitalHealthCardNumber) {
+                const purpose = 'Medical record access';
+                await handleScanSuccess(patientData.digitalHealthCardNumber, purpose);
+            }
+            
             return newPatient;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to create patient profile';
@@ -166,7 +195,6 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                     staffId={staffId}
                     onScanSuccess={handleScanSuccess}
                     onManualSearch={handleManualSearch}
-                    onCreatePatient={handleCreatePatient}
                     isLoading={isLoading}
                 />
             )}
@@ -233,6 +261,14 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                     <li>Report any unauthorized access attempts immediately</li>
                 </ul>
             </div>
+
+            {/* Create Patient Modal */}
+            <CreatePatientModal
+                isOpen={showCreateModal}
+                scannedCardNumber={notFoundCardNumber}
+                onClose={() => setShowCreateModal(false)}
+                onSubmit={handleCreatePatient}
+            />
         </div>
     );
 };
