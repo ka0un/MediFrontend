@@ -1,5 +1,7 @@
 import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType } from '../types';
+import { apiClient } from './apiClient';
 
+// Legacy BASE_URL kept for file download functions that need direct fetch
 const BASE_URL = 'http://localhost:8080/api';
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -45,89 +47,59 @@ async function handleFileResponse(response: Response, defaultFilename: string) {
 
 // UC-00: Authentication
 export const register = (data: any): Promise<AuthUser> => {
-    return fetch(`${BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    }).then(res => handleResponse(res));
+    return apiClient.post<AuthUser>('/auth/register', data);
 };
 
 export const login = (credentials: {username: string, password: string}): Promise<AuthUser> => {
-    return fetch(`${BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-    }).then(res => handleResponse(res));
+    return apiClient.post<AuthUser>('/auth/login', credentials);
 };
 
 export const logout = (): Promise<{message: string}> => {
-    return fetch(`${BASE_URL}/auth/logout`, { method: 'POST' }).then(res => handleResponse(res));
+    return apiClient.post<{message: string}>('/auth/logout');
 };
 
 
 // UC-01: Appointment Management
 export const getProviders = (specialty?: string): Promise<HealthcareProvider[]> => {
-  const url = new URL(`${BASE_URL}/appointments/providers`);
-  if (specialty) url.searchParams.append('specialty', specialty);
-  return fetch(url.toString()).then(res => handleResponse(res));
+  const endpoint = specialty ? `/appointments/providers?specialty=${specialty}` : '/appointments/providers';
+  return apiClient.get<HealthcareProvider[]>(endpoint);
 };
 
 export const getTimeSlots = (providerId: number, date: string): Promise<TimeSlot[]> => {
-  const url = new URL(`${BASE_URL}/appointments/timeslots`);
-  url.searchParams.append('providerId', providerId.toString());
-  url.searchParams.append('date', date);
-  return fetch(url.toString()).then(res => handleResponse(res));
+  return apiClient.get<TimeSlot[]>(`/appointments/timeslots?providerId=${providerId}&date=${date}`);
 };
 
 export const bookAppointment = (data: { patientId: number; providerId: number; timeSlotId: number }): Promise<Appointment> => {
-  return fetch(`${BASE_URL}/appointments/book`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(res => handleResponse(res));
+  return apiClient.post<Appointment>('/appointments/book', data);
 };
 
 export const processPayment = (data: PaymentData): Promise<Appointment> => {
-  return fetch(`${BASE_URL}/appointments/payment`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(res => handleResponse(res));
+  return apiClient.post<Appointment>('/appointments/payment', data);
 };
 
 export const getAppointmentByConfirmation = (confirmationNumber: string): Promise<Appointment> => {
-  return fetch(`${BASE_URL}/appointments/confirmation/${confirmationNumber}`).then(res => handleResponse(res));
+  return apiClient.get<Appointment>(`/appointments/confirmation/${confirmationNumber}`);
 };
 
 export const getPatientAppointments = (patientId: number): Promise<Appointment[]> => {
-  return fetch(`${BASE_URL}/appointments/patient/${patientId}`).then(res => handleResponse(res));
+  return apiClient.get<Appointment[]>(`/appointments/patient/${patientId}`);
 };
 
 export const cancelAppointment = (appointmentId: number): Promise<{ message: string }> => {
-    return fetch(`${BASE_URL}/appointments/${appointmentId}`, {
-        method: 'DELETE'
-    }).then(res => handleResponse(res));
+    return apiClient.delete<{ message: string }>(`/appointments/${appointmentId}`);
 };
 
 // UC-02: Patient Account Management
 export const getPatient = (patientId: number): Promise<Patient> => {
-    return fetch(`${BASE_URL}/patients/${patientId}`).then(res => handleResponse(res));
+    return apiClient.get<Patient>(`/patients/${patientId}`);
 };
 
 export const updatePatient = (patientId: number, patientData: Partial<Omit<Patient, 'id' | 'digitalHealthCardNumber'>>): Promise<Patient> => {
-    return fetch(`${BASE_URL}/patients/${patientId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patientData)
-    }).then(res => handleResponse(res));
+    return apiClient.put<Patient>(`/patients/${patientId}`, patientData);
 };
 
 export const createPatient = (patientData: Omit<Patient, 'id'>): Promise<Patient> => {
-    return fetch(`${BASE_URL}/patients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patientData)
-    }).then(res => handleResponse(res));
+    return apiClient.post<Patient>('/patients', patientData);
 };
 
 
@@ -137,7 +109,7 @@ export const getStatisticalReport = (filters: ReportFilters): Promise<Statistica
     Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value as string);
     });
-    return fetch(`${BASE_URL}/reports?${params.toString()}`).then(res => handleResponse(res));
+    return apiClient.get<StatisticalReport>(`/reports?${params.toString()}`);
 };
 
 export const exportReport = (format: 'PDF' | 'CSV', filters: ReportFilters) => {
@@ -184,89 +156,62 @@ export const downloadMedicalRecordsPDF = (patientId: number, staffId?: string, p
         .then(res => handleFileResponse(res, `medical_record_${patientId}.pdf`));
 };
 
+
 export const getAccessLogs = (patientId: number): Promise<AccessLog[]> => {
-    return fetch(`${BASE_URL}/medical-records/${patientId}/access-logs`).then(res => handleResponse(res));
+    return apiClient.get<AccessLog[]>(`/medical-records/${patientId}/access-logs`);
 };
 
 // Admin Endpoints
 export const getAdminDashboard = (): Promise<AdminDashboardData> => {
-    return fetch(`${BASE_URL}/admin/dashboard`).then(res => handleResponse(res));
+    return apiClient.get<AdminDashboardData>('/admin/dashboard');
 };
 
 export const getAdminPatients = (): Promise<Patient[]> => {
-    return fetch(`${BASE_URL}/admin/patients`).then(res => handleResponse(res));
+    return apiClient.get<Patient[]>('/admin/patients');
 };
 
 export const getAdminAppointments = (): Promise<Appointment[]> => {
-    return fetch(`${BASE_URL}/admin/appointments`).then(res => handleResponse(res));
+    return apiClient.get<Appointment[]>('/admin/appointments');
 };
 
 export const deletePatientByAdmin = (patientId: number): Promise<{message: string}> => {
-    return fetch(`${BASE_URL}/admin/patients/${patientId}`, {
-        method: 'DELETE'
-    }).then(res => handleResponse(res));
+    return apiClient.delete<{message: string}>(`/admin/patients/${patientId}`);
 };
 
 export const cancelAppointmentByAdmin = (appointmentId: number): Promise<{message: string}> => {
-    return fetch(`${BASE_URL}/admin/appointments/${appointmentId}`, {
-        method: 'DELETE'
-    }).then(res => handleResponse(res));
+    return apiClient.delete<{message: string}>(`/admin/appointments/${appointmentId}`);
 };
 
 export const updateAppointmentStatusByAdmin = (appointmentId: number, status: AppointmentStatus): Promise<Appointment> => {
-    return fetch(`${BASE_URL}/admin/appointments/${appointmentId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-    }).then(res => handleResponse(res));
+    return apiClient.put<Appointment>(`/admin/appointments/${appointmentId}/status`, { status });
 };
 
 // Admin Provider Management
 export const createProvider = (providerData: { name: string; specialty: string; hospitalName: string; hospitalType: HospitalType; }): Promise<HealthcareProvider> => {
-    return fetch(`${BASE_URL}/admin/providers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(providerData)
-    }).then(res => handleResponse(res));
+    return apiClient.post<HealthcareProvider>('/admin/providers', providerData);
 };
 
 export const updateProvider = (providerId: number, providerData: Partial<{ name: string; specialty: string; hospitalName: string; hospitalType: HospitalType; }>): Promise<HealthcareProvider> => {
-    return fetch(`${BASE_URL}/admin/providers/${providerId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(providerData)
-    }).then(res => handleResponse(res));
+    return apiClient.put<HealthcareProvider>(`/admin/providers/${providerId}`, providerData);
 };
 
 export const deleteProvider = (providerId: number): Promise<{ message: string }> => {
-    return fetch(`${BASE_URL}/admin/providers/${providerId}`, {
-        method: 'DELETE'
-    }).then(res => handleResponse(res));
+    return apiClient.delete<{ message: string }>(`/admin/providers/${providerId}`);
 };
 
 // Admin Time Slot Management
 export const getProviderTimeSlots = (providerId: number): Promise<TimeSlot[]> => {
-    return fetch(`${BASE_URL}/admin/providers/${providerId}/timeslots`).then(res => handleResponse(res));
+    return apiClient.get<TimeSlot[]>(`/admin/providers/${providerId}/timeslots`);
 };
 
 export const createTimeSlot = (providerId: number, timeSlotData: { startTime: string; endTime: string; available: boolean }): Promise<TimeSlot> => {
-    return fetch(`${BASE_URL}/admin/providers/${providerId}/timeslots`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(timeSlotData)
-    }).then(res => handleResponse(res));
+    return apiClient.post<TimeSlot>(`/admin/providers/${providerId}/timeslots`, timeSlotData);
 };
 
 export const updateTimeSlot = (timeSlotId: number, timeSlotData: Partial<{ startTime: string; endTime: string; available: boolean }>): Promise<TimeSlot> => {
-    return fetch(`${BASE_URL}/admin/timeslots/${timeSlotId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(timeSlotData)
-    }).then(res => handleResponse(res));
+    return apiClient.put<TimeSlot>(`/admin/timeslots/${timeSlotId}`, timeSlotData);
 };
 
 export const deleteTimeSlot = (timeSlotId: number): Promise<{ message: string }> => {
-    return fetch(`${BASE_URL}/admin/timeslots/${timeSlotId}`, {
-        method: 'DELETE'
-    }).then(res => handleResponse(res));
+    return apiClient.delete<{ message: string }>(`/admin/timeslots/${timeSlotId}`);
 };

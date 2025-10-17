@@ -4,6 +4,7 @@ import { PatientScanner } from './PatientScanner';
 import { PatientInfoCard } from './PatientInfoCard';
 import { MedicalRecordsDisplay } from './MedicalRecordsDisplay';
 import { useMedicalRecords } from '../hooks/useMedicalRecords';
+import { useOtpVerification } from '../hooks/useOtpVerification';
 import { CreatePatientModal, CreatePatientData } from './CreatePatientModal';
 import { OtpVerificationModal } from './OtpVerificationModal';
 import * as api from '../services/api';
@@ -22,19 +23,6 @@ interface StaffMedicalRecordsProps {
  * 
  * Main component for healthcare staff to access patient medical records
  * 
- * Follows SOLID Principles:
- * - Single Responsibility: Orchestrates the medical records workflow
- * - Open/Closed: Can be extended with new features without modification
- * - Liskov Substitution: Can be replaced with other record access interfaces
- * - Interface Segregation: Minimal props interface
- * - Dependency Inversion: Depends on hooks and child components (abstractions)
- * 
- * Best Practices:
- * - Component composition for maintainability
- * - Custom hooks for business logic separation
- * - Clear state management
- * - Proper error handling
- * - User feedback through notifications
  * 
  * Workflow:
  * 1. Staff scans patient card or enters patient ID
@@ -57,12 +45,18 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
         clearRecord,
     } = useMedicalRecords();
 
+    // Use OTP verification hook (SRP - separates OTP logic)
+    const {
+        maskedPhone: otpMaskedPhone,
+        sendOtp,
+        verifyOtp,
+    } = useOtpVerification();
+
     // State to track if staff has confirmed patient identity
     const [isIdentityConfirmed, setIsIdentityConfirmed] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [notFoundCardNumber, setNotFoundCardNumber] = useState<string>('');
     const [showOtpModal, setShowOtpModal] = useState(false);
-    const [otpMaskedPhone, setOtpMaskedPhone] = useState<string>('');
 
     // Get staff ID from user (use username as staff ID for demo)
     const staffId = user.username;
@@ -127,21 +121,17 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
         if (!record) return;
 
         try {
-            const response = await fetch(`http://localhost:8080/api/otp/send?patientId=${record.patientId}&staffUsername=${staffId}`, {
-                method: 'POST',
-            });
+            // Use OTP service instead of direct fetch (DIP)
+            const response = await sendOtp(record.patientId, staffId);
 
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                setOtpMaskedPhone(data.phoneNumber);
+            if (response.success) {
                 setShowOtpModal(true);
                 addNotification('success', 'OTP sent to patient\'s phone');
             } else {
-                addNotification('error', data.message || 'Failed to send OTP');
+                addNotification('error', response.message || 'Failed to send OTP');
             }
         } catch (err) {
-            addNotification('error', 'Failed to send OTP. Please try again.');
+            addNotification('error', err instanceof Error ? err.message : 'Failed to send OTP. Please try again.');
             console.error('OTP send error:', err);
         }
     };
@@ -176,17 +166,20 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
     const handleResendOtp = async () => {
         if (!record) return;
 
-        const response = await fetch(`http://localhost:8080/api/otp/send?patientId=${record.patientId}&staffUsername=${staffId}`, {
-            method: 'POST',
-        });
+        try {
+            // Use OTP service instead of direct fetch (DIP)
+            const response = await sendOtp(record.patientId, staffId);
 
-        const data = await response.json();
+            if (!response.success) {
+                throw new Error(response.message || 'Failed to resend OTP');
+            }
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Failed to resend OTP');
+            addNotification('success', 'OTP resent successfully');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to resend OTP';
+            addNotification('error', errorMessage);
+            throw err;
         }
-
-        addNotification('success', 'OTP resent successfully');
     };
 
     /**
