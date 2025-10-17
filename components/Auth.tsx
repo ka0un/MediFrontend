@@ -4,6 +4,7 @@ import type { AuthUser } from '../types';
 import { Card, Button, Input } from './ui';
 import { HealthCardIcon } from './Icons';
 import { validatePhoneNumber, validateAddress, validateEmail, validateRequired } from '../utils/validation';
+import { generateHealthCardNumber } from '../utils/healthCardGenerator';
 
 type AuthProps = {
     onLogin: (credentials: {username: string, password: string}) => Promise<AuthUser>;
@@ -15,6 +16,7 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
     const [isRegister, setIsRegister] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [generatedHealthCard, setGeneratedHealthCard] = useState<string>('');
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -34,6 +36,13 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
         }
     };
     
+    // Generate health card number when switching to registration
+    const handleRegisterMode = () => {
+        setIsRegister(true);
+        setGeneratedHealthCard(generateHealthCardNumber());
+        setErrors({});
+    };
+
     const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsLoading(true);
@@ -72,10 +81,12 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
             newErrors.username = usernameValidation.message || '';
         }
         
-        const digitalHealthCardNumber = formData.get('digitalHealthCardNumber') as string;
-        const cardValidation = validateRequired(digitalHealthCardNumber, 'Digital Health Card Number');
-        if (!cardValidation.isValid) {
-            newErrors.digitalHealthCardNumber = cardValidation.message || '';
+        const address = formData.get('address') as string;
+        if (address) {
+            const addressValidation = validateAddress(address);
+            if (!addressValidation.isValid) {
+                newErrors.address = addressValidation.message || '';
+            }
         }
         
         setErrors(newErrors);
@@ -88,6 +99,8 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
 
         const data = Object.fromEntries(formData.entries());
         delete data.confirmPassword;
+        // Use the generated health card number
+        data.digitalHealthCardNumber = generatedHealthCard;
 
         try {
             await onRegister(data);
@@ -111,7 +124,7 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
                         <button onClick={() => setIsRegister(false)} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${!isRegister ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                             Sign In
                         </button>
-                        <button onClick={() => setIsRegister(true)} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${isRegister ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                        <button onClick={handleRegisterMode} className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm ${isRegister ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                             Create Account
                         </button>
                     </nav>
@@ -133,7 +146,19 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
                             error={errors.phone}
                             helperText="Enter 10-digit phone number (e.g., 1234567890)"
                         />
-                        <Input name="digitalHealthCardNumber" label="Digital Health Card Number" required error={errors.digitalHealthCardNumber} />
+                        <Input 
+                            name="digitalHealthCardNumber" 
+                            label="Digital Health Card Number" 
+                            value={generatedHealthCard}
+                            disabled
+                            helperText="Auto-generated unique health card number"
+                        />
+                        <Input 
+                            name="address" 
+                            label="Address" 
+                            error={errors.address}
+                            helperText="Enter full address (optional)"
+                        />
                         <Input name="dateOfBirth" label="Date of Birth" type="date" />
                         <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? 'Registering...' : 'Register'}</Button>
                     </form>

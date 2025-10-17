@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Button, Input } from './ui';
 import { XIcon } from './Icons';
+import { validatePhoneNumber, validateAddress, validateEmail, validateRequired } from '../utils/validation';
+import { generateHealthCardNumber } from '../utils/healthCardGenerator';
 
 /**
  * Props interface for CreatePatientModal
@@ -49,7 +51,7 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
         name: '',
         email: '',
         phone: '',
-        digitalHealthCardNumber: scannedCardNumber || '',
+        digitalHealthCardNumber: scannedCardNumber || generateHealthCardNumber(),
         address: '',
         dateOfBirth: '',
         emergencyContactName: '',
@@ -62,43 +64,46 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Update card number if prop changes
+    // Update card number if prop changes or generate new one if modal opens without scanned card
     React.useEffect(() => {
         if (scannedCardNumber) {
             setFormData(prev => ({ ...prev, digitalHealthCardNumber: scannedCardNumber }));
+        } else if (isOpen && !formData.digitalHealthCardNumber) {
+            // Generate new health card number when modal opens without scanned card
+            setFormData(prev => ({ ...prev, digitalHealthCardNumber: generateHealthCardNumber() }));
         }
-    }, [scannedCardNumber]);
+    }, [scannedCardNumber, isOpen, formData.digitalHealthCardNumber]);
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
 
-        if (!formData.name.trim()) {
-            newErrors.name = 'Name is required';
+        // Validate required fields
+        const nameValidation = validateRequired(formData.name, 'Name');
+        if (!nameValidation.isValid) {
+            newErrors.name = nameValidation.message || '';
         }
 
-        if (!formData.email.trim()) {
-            newErrors.email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = 'Invalid email format';
+        const emailValidation = validateEmail(formData.email);
+        if (!emailValidation.isValid) {
+            newErrors.email = emailValidation.message || '';
         }
 
-        if (!formData.phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        } else if (!/^[+]?[\d\s-()]+$/.test(formData.phone)) {
-            newErrors.phone = 'Invalid phone format';
+        const phoneValidation = validatePhoneNumber(formData.phone);
+        if (!phoneValidation.isValid) {
+            newErrors.phone = phoneValidation.message || '';
         }
 
-        if (!formData.digitalHealthCardNumber.trim()) {
-            newErrors.digitalHealthCardNumber = 'Health card number is required';
-        } else {
-            // Validate format: ABC-2024-123 or ABCD-2024-123
-            // Format: 3-4 uppercase letters, dash, year (4 digits), dash, minimum 3 digits
-            const cardNumberRegex = /^[A-Z]{3,4}-\d{4}-\d{3,}$/;
-            if (!cardNumberRegex.test(formData.digitalHealthCardNumber)) {
-                newErrors.digitalHealthCardNumber = 'Invalid format. Expected: ABC-2024-123 or ABCD-2024-123';
+        // Health card number is auto-generated, no validation needed
+
+        // Validate optional address field
+        if (formData.address) {
+            const addressValidation = validateAddress(formData.address);
+            if (!addressValidation.isValid) {
+                newErrors.address = addressValidation.message || '';
             }
         }
 
+        // Validate date of birth
         if (formData.dateOfBirth) {
             const dob = new Date(formData.dateOfBirth);
             const today = new Date();
@@ -114,9 +119,28 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        // Clear error for this field
+        
+        // Clear error when user starts typing
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
+        }
+        
+        // Validate specific fields on change
+        if (name === 'phone') {
+            const validation = validatePhoneNumber(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, phone: validation.message || '' }));
+            }
+        } else if (name === 'address') {
+            const validation = validateAddress(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, address: validation.message || '' }));
+            }
+        } else if (name === 'email') {
+            const validation = validateEmail(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, email: validation.message || '' }));
+            }
         }
     };
 
@@ -135,7 +159,7 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 name: '',
                 email: '',
                 phone: '',
-                digitalHealthCardNumber: scannedCardNumber || '',
+                digitalHealthCardNumber: scannedCardNumber || generateHealthCardNumber(),
                 address: '',
                 dateOfBirth: '',
                 emergencyContactName: '',
@@ -160,7 +184,7 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                 name: '',
                 email: '',
                 phone: '',
-                digitalHealthCardNumber: scannedCardNumber || '',
+                digitalHealthCardNumber: scannedCardNumber || generateHealthCardNumber(),
                 address: '',
                 dateOfBirth: '',
                 emergencyContactName: '',
@@ -226,15 +250,16 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                                     onChange={handleChange}
                                     placeholder="+1-234-567-8900"
                                     error={errors.phone}
+                                    helperText="Enter 10-digit phone number (e.g., 1234567890)"
                                 />
                                 <Input
-                                    label="Health Card Number *"
+                                    label="Health Card Number"
                                     name="digitalHealthCardNumber"
                                     value={formData.digitalHealthCardNumber}
                                     onChange={handleChange}
-                                    placeholder="ABC-2024-123 or ABCD-2024-123"
-                                    error={errors.digitalHealthCardNumber}
-                                    disabled={!!scannedCardNumber}
+                                    placeholder="Auto-generated"
+                                    disabled={true}
+                                    helperText="Auto-generated unique health card number"
                                 />
                             </div>
                         </div>
@@ -285,8 +310,18 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                                         onChange={handleChange}
                                         placeholder="123 Main Street, City, Country"
                                         rows={2}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none ${
+                                            errors.address 
+                                                ? 'border-red-300 focus:ring-red-500' 
+                                                : 'border-slate-300 focus:ring-primary'
+                                        }`}
                                     />
+                                    {errors.address && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+                                    )}
+                                    {!errors.address && (
+                                        <p className="mt-1 text-sm text-gray-500">Enter full address (optional)</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
