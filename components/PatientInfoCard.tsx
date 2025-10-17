@@ -8,7 +8,6 @@ import type { MedicalRecord } from '../types';
 interface PatientInfoCardProps {
     record: MedicalRecord;
     onConfirmAccess?: () => void;
-    onDownloadPDF?: () => void;
     showActions?: boolean;
 }
 
@@ -71,7 +70,6 @@ const InfoField: React.FC<{ label: string; value: string | number }> = ({ label,
 export const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
     record,
     onConfirmAccess,
-    onDownloadPDF,
     showActions = true,
 }) => {
     const age = calculateAge(record.dateOfBirth);
@@ -99,19 +97,10 @@ export const PatientInfoCard: React.FC<PatientInfoCardProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                {showActions && (
-                    <div className="flex gap-2">
-                        {onDownloadPDF && (
-                            <Button variant="secondary" onClick={onDownloadPDF} className="text-sm">
-                                Download PDF
-                            </Button>
-                        )}
-                        {onConfirmAccess && (
-                            <Button onClick={onConfirmAccess} className="text-sm">
-                                Confirm Identity & Access Records
-                            </Button>
-                        )}
-                    </div>
+                {showActions && onConfirmAccess && (
+                    <Button onClick={onConfirmAccess} className="text-sm">
+                        Verify Identity with OTP
+                    </Button>
                 )}
             </div>
 

@@ -5,6 +5,7 @@ import { PatientInfoCard } from './PatientInfoCard';
 import { MedicalRecordsDisplay } from './MedicalRecordsDisplay';
 import { useMedicalRecords } from '../hooks/useMedicalRecords';
 import { CreatePatientModal, CreatePatientData } from './CreatePatientModal';
+import { OtpVerificationModal } from './OtpVerificationModal';
 import * as api from '../services/api';
 import type { AuthUser } from '../types';
 
@@ -49,6 +50,7 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
         record,
         isLoading,
         error,
+        isOffline,
         scanDigitalCard,
         fetchRecordByPatientId,
         downloadPDF,
@@ -59,6 +61,8 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
     const [isIdentityConfirmed, setIsIdentityConfirmed] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [notFoundCardNumber, setNotFoundCardNumber] = useState<string>('');
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otpMaskedPhone, setOtpMaskedPhone] = useState<string>('');
 
     // Get staff ID from user (use username as staff ID for demo)
     const staffId = user.username;
@@ -116,12 +120,30 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
     };
 
     /**
-     * Handle patient identity confirmation
+     * Handle patient identity confirmation via OTP
      * This is a critical step in the workflow to ensure proper patient identification
      */
-    const handleConfirmIdentity = () => {
-        setIsIdentityConfirmed(true);
-        addNotification('success', 'Patient identity confirmed. Access granted to medical records.');
+    const handleConfirmIdentity = async () => {
+        if (!record) return;
+
+        try {
+            const response = await fetch(`http://localhost:8080/api/otp/send?patientId=${record.patientId}&staffUsername=${staffId}`, {
+                method: 'POST',
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setOtpMaskedPhone(data.phoneNumber);
+                setShowOtpModal(true);
+                addNotification('success', 'OTP sent to patient\'s phone');
+            } else {
+                addNotification('error', data.message || 'Failed to send OTP');
+            }
+        } catch (err) {
+            addNotification('error', 'Failed to send OTP. Please try again.');
+            console.error('OTP send error:', err);
+        }
     };
 
     /**
@@ -144,6 +166,35 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
     const handleNewSearch = () => {
         clearRecord();
         setIsIdentityConfirmed(false);
+    };
+
+
+
+    /**
+     * Handle resending OTP
+     */
+    const handleResendOtp = async () => {
+        if (!record) return;
+
+        const response = await fetch(`http://localhost:8080/api/otp/send?patientId=${record.patientId}&staffUsername=${staffId}`, {
+            method: 'POST',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to resend OTP');
+        }
+
+        addNotification('success', 'OTP resent successfully');
+    };
+
+    /**
+     * Handle successful OTP verification
+     */
+    const handleOtpVerified = () => {
+        setIsIdentityConfirmed(true);
+        addNotification('success', 'Patient identity verified via OTP. Access granted to medical records.');
     };
 
     /**
@@ -173,6 +224,25 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
         <div className="space-y-6">
             <PageTitle>Medical Records Access</PageTitle>
 
+            {/* Offline Indicator (UC-04 A4) */}
+            {isOffline && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div className="flex items-center">
+                        <svg className="w-5 h-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-medium text-yellow-800">
+                                Offline Mode Active
+                            </p>
+                            <p className="text-xs text-yellow-700 mt-1">
+                                You are offline. Showing cached medical records only. Changes will sync when connection is restored.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Patient Scanner - Always visible for new searches */}
             {!record && (
                 <PatientScanner
@@ -189,7 +259,6 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                     <PatientInfoCard
                         record={record}
                         onConfirmAccess={handleConfirmIdentity}
-                        onDownloadPDF={handleDownloadPDF}
                         showActions={true}
                     />
                     
@@ -230,7 +299,10 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                     </div>
 
                     {/* Medical Records */}
-                    <MedicalRecordsDisplay record={record} />
+                    <MedicalRecordsDisplay 
+                        record={record} 
+                        onDownloadPDF={handleDownloadPDF}
+                    />
                 </div>
             )}
 
@@ -240,7 +312,8 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                 <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
                     <li>All access to patient medical records is logged for security and compliance</li>
                     <li>Enter the patient's ID to retrieve their medical records</li>
-                    <li>Always verify patient identity before confirming access</li>
+                    <li>Patient identity verification via OTP is required before accessing records</li>
+                    <li>OTP will be sent to the patient's registered phone number</li>
                     <li>Patient consent is required for sharing records with third parties</li>
                     <li>Report any unauthorized access attempts immediately</li>
                 </ul>
@@ -253,6 +326,20 @@ export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
                 onClose={() => setShowCreateModal(false)}
                 onSubmit={handleCreatePatient}
             />
+
+            {/* OTP Verification Modal */}
+            {record && (
+                <OtpVerificationModal
+                    isOpen={showOtpModal}
+                    patientName={record.name}
+                    maskedPhone={otpMaskedPhone}
+                    patientId={record.patientId}
+                    staffUsername={staffId}
+                    onClose={() => setShowOtpModal(false)}
+                    onVerified={handleOtpVerified}
+                    onResendOtp={handleResendOtp}
+                />
+            )}
         </div>
     );
 };
