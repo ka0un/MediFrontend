@@ -262,3 +262,5 @@ export const deleteTimeSlot = (timeSlotId: number): Promise<{ message: string }>
         method: 'DELETE'
     }).then(res => handleResponse(res));
 };
+
+
