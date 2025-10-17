@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import type { StatisticalReport, ReportFilters } from '../types';
+import type { StatisticalReport, ReportFilters, HealthcareProvider } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, KpiCard, Button, Input, Select, Table, Badge, Spinner } from './ui';
 import { ReportsIcon, UserIcon, HospitalIcon, StethoscopeIcon } from './Icons';
@@ -47,13 +47,24 @@ export default function ReportsDashboard({
     const [exportedFileUrl, setExportedFileUrl] = useState<string | null>(null);
     const [shareEmail, setShareEmail] = useState('');
 
+    // Fetch providers for filtering
+    const fetchProvidersData = useCallback(async () => {
+        try {
+            setIsLoadingProviders(true);
+            const providersData = await api.getProviders();
+            setProviders(providersData);
+        } catch (error) {
+            console.error('Error fetching providers:', error);
+            // Don't show error notification as it's not critical
+        } finally {
+            setIsLoadingProviders(false);
+        }
+    }, []);
+
     const fetchReport = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [reportData] = await Promise.all([
-                api.getStatisticalReport(filters),
-                fetchProviders()
-            ]);
+            const reportData = await api.getStatisticalReport(filters);
             console.log('Fetched report data:', reportData);
             setReport(reportData);
         } catch (error) {
@@ -62,8 +73,14 @@ export default function ReportsDashboard({
         } finally {
             setIsLoading(false);
         }
-    }, [filters, addNotification, fetchProviders]);
+    }, [filters, addNotification]);
 
+    // Fetch providers on mount
+    useEffect(() => {
+        fetchProvidersData();
+    }, [fetchProvidersData]);
+
+    // Fetch report when filters change
     useEffect(() => {
         fetchReport();
     }, [fetchReport]);

@@ -102,14 +102,6 @@ export const createPatient = (patientData: Omit<Patient, 'id'>): Promise<Patient
     return apiClient.post<Patient>('/patients', patientData);
 };
 
-export const createPatient = (patientData: Omit<Patient, 'id'>): Promise<Patient> => {
-    return fetch(`${BASE_URL}/patients`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patientData)
-    }).then(res => handleResponse(res));
-};
-
 
 // UC-03: Statistical Reports (Admin)
 export const getStatisticalReport = (filters: ReportFilters): Promise<StatisticalReport> => {
