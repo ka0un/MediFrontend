@@ -1,15 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import type { Appointment } from '../types';
 import { AppointmentStatus } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Modal, Spinner, Select } from './ui';
-
-// Add Html5Qrcode to the Window interface for TypeScript to recognize it
-declare global {
-    interface Window {
-        Html5Qrcode: any;
-    }
-}
 
 export default function ScanQRCode({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [scannedAppointment, setScannedAppointment] = useState<Appointment | null>(null);
@@ -17,7 +11,7 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
-    const scannerRef = useRef<any>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
     const readerElementId = "qr-reader";
 
     const onScanSuccess = useCallback(async (decodedText: string) => {
@@ -47,14 +41,9 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     }, [addNotification]);
 
     useEffect(() => {
-        if (!window.Html5Qrcode) {
-            setError("QR Code scanning library failed to load. Please refresh the page.");
-            return;
-        }
-
         // Initialize scanner instance on first render
         if (!scannerRef.current) {
-            scannerRef.current = new window.Html5Qrcode(readerElementId);
+            scannerRef.current = new Html5Qrcode(readerElementId);
         }
         const scanner = scannerRef.current;
 

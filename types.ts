@@ -231,3 +231,40 @@ export interface Notification {
     cardNumber?: string; // For patient not found notifications
     onAction?: () => void; // For clickable actions like "Create New Patient"
 }
+
+export interface UtilizationReport {
+    id: number;
+    reportName: string;
+    reportDate: string;
+    startDate: string;
+    endDate: string;
+    department?: string;
+    doctor?: string;
+    serviceCategory?: string;
+    totalServices: number;
+    totalPatients: number;
+    averageUtilization: number;
+    peakHours?: string;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateUtilizationReportPayload {
+    reportName: string;
+    startDate: string;
+    endDate: string;
+    department?: string;
+    doctor?: string;
+    serviceCategory?: string;
+}
+
+export interface UpdateUtilizationReportPayload {
+    reportName?: string;
+    startDate?: string;
+    endDate?: string;
+    department?: string;
+    doctor?: string;
+    serviceCategory?: string;
+    notes?: string;
+}
