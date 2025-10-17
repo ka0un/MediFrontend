@@ -9,6 +9,7 @@ import AppointmentManagement from './components/AppointmentManagement';
 import ReportsDashboard from './components/ReportsDashboard';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import MedicalRecords from './components/MedicalRecords';
+import StaffMedicalRecords from './components/StaffMedicalRecords';
 import Auth from './components/Auth';
 import type { Notification, AuthUser } from './types';
 import { Role } from './types';
@@ -70,6 +71,7 @@ const adminNavItems = [
     { id: 'provider-management', label: 'Providers', icon: StethoscopeIcon },
     { id: 'patients', label: 'All Patients', icon: PatientsIcon },
     { id: 'appointments', label: 'All Appointments', icon: AppointmentsIcon },
+    { id: 'medical-records', label: 'Medical Records', icon: RecordsIcon },
     { id: 'scan-qr', label: 'Scan Visit Card', icon: QrCodeIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
 ];
@@ -82,7 +84,11 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
+<<<<<<< HEAD
 type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management';
+=======
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management' | 'medical-records';
+>>>>>>> origin/main
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
@@ -134,16 +140,38 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
     return (
         <div className="fixed top-5 right-5 z-50 w-full max-w-sm">
             {notifications.map(n => (
-                <div key={n.id} className={`relative rounded-md shadow-lg p-4 mb-2 ${n.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                    <button onClick={() => removeNotification(n.id)} className="absolute top-1 right-2 text-white font-bold">&times;</button>
-                    {n.message}
+                <div 
+                    key={n.id} 
+                    className={`relative rounded-md shadow-lg p-4 mb-2 ${
+                        n.type === 'success' 
+                            ? 'bg-green-500' 
+                            : 'bg-red-500'
+                    } text-white`}
+                >
+                    <button onClick={() => removeNotification(n.id)} className="absolute top-1 right-2 text-white font-bold text-xl">&times;</button>
+                    <div className="pr-6">
+                        {n.message}
+                        {n.type === 'patient-not-found' && n.onAction && (
+                            <div className="mt-2">
+                                <span
+                                    onClick={() => {
+                                        n.onAction!();
+                                        removeNotification(n.id);
+                                    }}
+                                    className="text-white underline cursor-pointer hover:text-gray-200 font-medium"
+                                >
+                                    Create New Patient
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>
     );
 };
 
-const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void }) => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
     const title = activeView === 'analytics' ? 'Analytics Dashboard' : (adminNavItems.find(item => item.id === activeView)?.label || 'Dashboard');
 
@@ -153,6 +181,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
             case 'provider-management': return <ProviderManagement addNotification={addNotification} />;
             case 'patients': return <AdminPatients addNotification={addNotification} />;
             case 'appointments': return <AdminAppointments addNotification={addNotification} />;
+            case 'medical-records': return <StaffMedicalRecords user={user} addNotification={addNotification} />;
             case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
             case 'reports': return <ReportsDashboard addNotification={addNotification} setActiveView={setActiveView} />;
             case 'analytics': return <AnalyticsDashboard addNotification={addNotification} />;
@@ -173,7 +202,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
     );
 };
 
-const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
+const PatientApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void }) => {
     const [activeView, setActiveView] = useState<PatientView>('dashboard');
     const title = patientNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
     
@@ -209,10 +238,11 @@ export default function App() {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
 
-    const addNotification = useCallback((type: 'success' | 'error', message: string) => {
+    const addNotification = useCallback((type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => {
         const id = Date.now();
-        setNotifications(prev => [...prev, { id, type, message }]);
-        setTimeout(() => removeNotification(id), 5000);
+        setNotifications(prev => [...prev, { id, type, message, ...options }]);
+        // Auto-dismiss all notifications after 3 seconds
+        setTimeout(() => removeNotification(id), 3000);
     }, [removeNotification]);
 
     if (loading) {
