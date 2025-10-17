@@ -8,6 +8,7 @@ import PatientAccount from './components/PatientAccount';
 import AppointmentManagement from './components/AppointmentManagement';
 import ReportsDashboard from './components/ReportsDashboard';
 import MedicalRecords from './components/MedicalRecords';
+import StaffMedicalRecords from './components/StaffMedicalRecords';
 import Auth from './components/Auth';
 import type { Notification, AuthUser } from './types';
 import { Role } from './types';
@@ -69,6 +70,7 @@ const adminNavItems = [
     { id: 'provider-management', label: 'Providers', icon: StethoscopeIcon },
     { id: 'patients', label: 'All Patients', icon: PatientsIcon },
     { id: 'appointments', label: 'All Appointments', icon: AppointmentsIcon },
+    { id: 'medical-records', label: 'Medical Records', icon: RecordsIcon },
     { id: 'scan-qr', label: 'Scan Visit Card', icon: QrCodeIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
 ];
@@ -81,7 +83,7 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management' | 'medical-records';
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
@@ -152,6 +154,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
             case 'provider-management': return <ProviderManagement addNotification={addNotification} />;
             case 'patients': return <AdminPatients addNotification={addNotification} />;
             case 'appointments': return <AdminAppointments addNotification={addNotification} />;
+            case 'medical-records': return <StaffMedicalRecords user={user} addNotification={addNotification} />;
             case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
             case 'reports': return <ReportsDashboard addNotification={addNotification} />;
             default: return <div>Select a view</div>;
