@@ -215,3 +215,5 @@ export const updateTimeSlot = (timeSlotId: number, timeSlotData: Partial<{ start
 export const deleteTimeSlot = (timeSlotId: number): Promise<{ message: string }> => {
     return apiClient.delete<{ message: string }>(`/admin/timeslots/${timeSlotId}`);
 };
+
+
