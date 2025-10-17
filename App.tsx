@@ -7,6 +7,7 @@ import PatientDashboard from './components/PatientDashboard';
 import PatientAccount from './components/PatientAccount';
 import AppointmentManagement from './components/AppointmentManagement';
 import ReportsDashboard from './components/ReportsDashboard';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import MedicalRecords from './components/MedicalRecords';
 import Auth from './components/Auth';
 import type { Notification, AuthUser } from './types';
@@ -81,7 +82,7 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management';
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
@@ -144,7 +145,7 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
 
 const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogout: () => void, addNotification: (type: 'success' | 'error', message: string) => void }) => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
-    const title = adminNavItems.find(item => item.id === activeView)?.label || 'Dashboard';
+    const title = activeView === 'analytics' ? 'Analytics Dashboard' : (adminNavItems.find(item => item.id === activeView)?.label || 'Dashboard');
 
     const renderView = () => {
         switch (activeView) {
@@ -153,7 +154,8 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
             case 'patients': return <AdminPatients addNotification={addNotification} />;
             case 'appointments': return <AdminAppointments addNotification={addNotification} />;
             case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
-            case 'reports': return <ReportsDashboard addNotification={addNotification} />;
+            case 'reports': return <ReportsDashboard addNotification={addNotification} setActiveView={setActiveView} />;
+            case 'analytics': return <AnalyticsDashboard addNotification={addNotification} />;
             default: return <div>Select a view</div>;
         }
     };
