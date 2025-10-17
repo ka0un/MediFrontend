@@ -35,6 +35,8 @@ interface Patient {
     emergencyContactName?: string;
     emergencyContactPhone?: string;
     medicalHistory?: string;
+    registrationDate?: string;
+    createdAt?: string;
 }
 
 export default function ReportsDashboard({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
@@ -52,14 +54,18 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
     const fetchPatients = useCallback(async () => {
         try {
             const data = await api.getAdminPatients();
+            console.log('Fetched patients:', data);
             setPatients(data);
             // Filter patients by name
             const results = data.filter(patient => 
                 patient.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
             setFilteredPatients(results);
+            setIsLoadingPatients(false);
         } catch (error) {
+            console.error('Error fetching patients:', error);
             addNotification('error', 'Failed to fetch patients');
+            setIsLoadingPatients(false);
         }
     }, [searchTerm, addNotification]);
 
@@ -85,33 +91,115 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
         }).length;
     }, [patients]);
 
-    // Export to CSV function
-    const exportToCSV = () => {
-        const headers = ['Name', 'Email', 'Phone', 'Health Card #'];
-        const csvContent = [
-            headers.join(','),
-            ...filteredPatients.map(p => 
-                `"${p.name}","${p.email}","${p.phone}","${p.healthCard}"`
-            )
-        ].join('\n');
+    // Export to CSV function for patients
+    const exportToCSV = useCallback(() => {
+        try {
+            const headers = ['Name', 'Email', 'Phone', 'Health Card #'];
+            const dataToExport = searchTerm ? filteredPatients : patients;
+            
+            const csvContent = [
+                headers.join(','),
+                ...dataToExport.map(p => 
+                    [
+                        `"${p.name || ''}"`,
+                        `"${p.email || ''}"`,
+                        `"${p.phone || ''}"`,
+                        `"${p.digitalHealthCardNumber || ''}"`
+                    ].join(',')
+                )
+            ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `patients_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        addNotification('success', 'Patient data exported successfully');
-    };
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `patients_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            addNotification('success', 'Patient data exported successfully');
+        } catch (error) {
+            console.error('Error exporting patient data:', error);
+            addNotification('error', 'Failed to export patient data');
+        }
+    }, [patients, filteredPatients, searchTerm, addNotification]);
+
+    // Export providers to CSV function
+    const exportProvidersToCSV = useCallback(() => {
+        try {
+            const headers = ['Name', 'Specialty', 'Hospital Name', 'Hospital Type'];
+            const csvContent = [
+                headers.join(','),
+                ...providers.map(provider => 
+                    [
+                        `"${provider.name || ''}"`,
+                        `"${provider.specialty || ''}"`,
+                        `"${provider.hospitalName || ''}"`,
+                        `"${provider.hospitalType || ''}"`
+                    ].join(',')
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `providers_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            addNotification('success', 'Providers data exported successfully');
+        } catch (error) {
+            console.error('Error exporting providers data:', error);
+            addNotification('error', 'Failed to export providers data');
+        }
+    }, [providers, addNotification]);
+
+    // Export providers statistics to CSV function
+    const exportProvidersStatsToCSV = useCallback(() => {
+        try {
+            // Calculate provider counts by hospital type
+            const providerCounts = providers.reduce((acc, provider) => {
+                if (!provider.hospitalType) return acc;
+                const type = provider.hospitalType === 'GOVERNMENT' ? 'Government' : 'Private';
+                acc[type] = (acc[type] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const headers = ['Hospital Type', 'Provider Count'];
+            const csvContent = [
+                headers.join(','),
+                ...Object.entries(providerCounts).map(([type, count]) => 
+                    `"${type}",${count}`
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `providers_stats_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            addNotification('success', 'Providers statistics exported successfully');
+        } catch (error) {
+            console.error('Error exporting providers statistics:', error);
+            addNotification('error', 'Failed to export providers statistics');
+        }
+    }, [providers, addNotification]);
 
     const fetchProviders = useCallback(async () => {
         setIsLoadingProviders(true);
         try {
             const data = await api.getProviders();
+            console.log('Fetched providers:', data);
             setProviders(data);
         } catch (error) {
+            console.error('Error fetching providers:', error);
             addNotification('error', 'Failed to fetch providers');
         } finally {
             setIsLoadingProviders(false);
@@ -125,8 +213,10 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
                 api.getStatisticalReport(filters),
                 fetchProviders()
             ]);
+            console.log('Fetched report data:', reportData);
             setReport(reportData);
         } catch (error) {
+            console.error('Error fetching report:', error);
             addNotification('error', 'Failed to fetch report');
         } finally {
             setIsLoading(false);
@@ -150,6 +240,48 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
         }
     };
 
+    // Export statistical data to CSV
+    const exportStatisticalData = useCallback(() => {
+        if (!report) return;
+        
+        try {
+            // Prepare the data
+            const statsData = [
+                ['Metric', 'Value'],
+                ['Total Visits', report.kpis.totalVisits],
+                ['Confirmed Appointments', report.kpis.confirmedAppointments],
+                ['Pending Payments', report.kpis.pendingPayments],
+                ['Cancelled Appointments', report.kpis.cancelledAppointments],
+                ['Total Revenue', `$${report.kpis.totalRevenue.toFixed(2)}`],
+                ['Average Wait Time', `${report.kpis.averageWaitTime} mins`],
+                ['Appointment Completion Rate', `${report.kpis.appointmentCompletionRate.toFixed(1)}%`],
+                ['', ''], // Empty row for better readability
+                ['Date Range', `${filters.startDate} to ${filters.endDate}`]
+            ];
+
+            // Convert to CSV
+            const csvContent = statsData.map(row => 
+                row.map(field => `"${field}"`).join(',')
+            ).join('\n');
+
+            // Create and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `statistics_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            addNotification('success', 'Statistical data exported successfully');
+        } catch (error) {
+            console.error('Error exporting statistical data:', error);
+            addNotification('error', 'Failed to export statistical data');
+        }
+    }, [report, filters, addNotification]);
+
     return (
         <div>
             <PageTitle>Statistical Reports</PageTitle>
@@ -162,14 +294,27 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
                     <Input label="Department" name="department" value={filters.department} onChange={handleFilterChange} />
                     <Button onClick={fetchReport}>Apply Filters</Button>
                 </div>
-                <div className="flex justify-end space-x-2 mt-4">
-                    <Button variant="secondary" onClick={() => handleExport('CSV')}>Export CSV</Button>
-                    <Button variant="secondary" onClick={() => handleExport('PDF')}>Export PDF</Button>
+                <div className="flex justify-end mt-4">
+                    <Button variant="secondary" onClick={exportStatisticalData}>
+                        Export Statistics
+                    </Button>
                 </div>
             </Card>
 
-            {isLoading ? <p>Loading report...</p> : !report || report.message ? (
-                 <Card><p>{report?.message || 'No data available for the selected filters.'}</p></Card>
+            {isLoading ? (
+                <Card className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                        <Spinner className="mx-auto mb-4" />
+                        <p className="text-gray-600">Loading report data...</p>
+                    </div>
+                </Card>
+            ) : !report || report.message ? (
+                <Card>
+                    <div className="text-center py-8">
+                        <p className="text-gray-600">{report?.message || 'No data available for the selected filters.'}</p>
+                        <p className="text-sm text-gray-500 mt-2">Try adjusting your filters or check if the backend server is running.</p>
+                    </div>
+                </Card>
             ) : (
                 <>
                     {/* Appointments Statistical Records Title */}
@@ -180,10 +325,46 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
 
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                        <KpiCard title="Total Visits" value={report.kpis.totalVisits} icon={<ReportsIcon />} />
-                        <KpiCard title="Confirmed Appointments" value={report.kpis.confirmedAppointments} icon={<ReportsIcon />} />
-                        <KpiCard title="Total Revenue" value={`$${report.kpis.totalRevenue.toFixed(2)}`} icon={<ReportsIcon />} />
-                        <KpiCard title="Completion Rate" value={`${report.kpis.appointmentCompletionRate.toFixed(1)}%`} icon={<ReportsIcon />} />
+                        <div>
+                            <KpiCard 
+                                title="Total Visits" 
+                                value={report.kpis.totalVisits} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {filters.startDate} to {filters.endDate}
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Confirmed" 
+                                value={report.kpis.confirmedAppointments} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {((report.kpis.confirmedAppointments / report.kpis.totalVisits) * 100).toFixed(1)}% of total
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Total Revenue" 
+                                value={`$${report.kpis.totalRevenue.toFixed(2)}`} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                Avg: ${(report.kpis.totalRevenue / report.kpis.totalVisits).toFixed(2)}/visit
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Completion" 
+                                value={`${report.kpis.appointmentCompletionRate.toFixed(1)}%`} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {report.kpis.completedAppointments || 0} completed
+                            </p>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -217,9 +398,14 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
                     </div>
 
                     {/* Provider Statistical Records Title */}
-                    <div className="mt-8 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800">Provider's Statistical Records</h2>
-                        <div className="w-16 h-1 bg-cyan-500 mt-2 rounded-full"></div>
+                    <div className="flex justify-between items-center mt-8 mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">Provider's Statistical Records</h2>
+                            <div className="w-16 h-1 bg-cyan-500 mt-2 rounded-full"></div>
+                        </div>
+                        <Button variant="secondary" onClick={exportProvidersToCSV}>
+                            Export Providers Data
+                        </Button>
                     </div>
 
                     {/* Provider Distribution Charts */}
@@ -293,11 +479,21 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
 
                         {/* Providers by Hospital Type */}
                         <Card>
-                            <div className="flex items-center mb-4">
-                                <div className="p-2 rounded-lg bg-blue-100 text-blue-600 mr-3">
-                                    <HospitalIcon className="h-5 w-5" />
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="flex items-center">
+                                    <div className="p-2 rounded-lg bg-blue-100 text-blue-600 mr-3">
+                                        <HospitalIcon className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-800">Providers by Hospital Type</h3>
                                 </div>
-                                <h3 className="text-lg font-semibold text-gray-800">Providers by Hospital Type</h3>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={exportProvidersStatsToCSV}
+                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                >
+                                    Export Stats
+                                </Button>
                             </div>
                             <div className="h-80">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -473,4 +669,4 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
             )}
         </div>
     );
-}
+} 

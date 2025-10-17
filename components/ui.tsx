@@ -115,94 +115,101 @@ export const PageTitle = ({ children, actions }: { children?: ReactNode, actions
 );
 
 export const KpiCard = ({ title, value, icon }: { title: string; value: string | number; icon: ReactNode }) => (
-  <div className="bg-white p-6 rounded-lg shadow">
-    <div className="flex items-center">
-      <div className="p-3 rounded-full bg-cyan-100 text-cyan-600">
-        {icon}
-      </div>
-      <div className="ml-4">
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-2xl font-semibold text-gray-900">{value}</p>
-      </div>
+  <Card className="flex items-center p-4">
+    <div className="p-3 rounded-full bg-primary-100 text-primary mr-4">
+      {icon}
     </div>
-  </div>
+    <div>
+      <p className="text-sm font-medium text-gray-600">{title}</p>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+    </div>
+  </Card>
 );
 
-type BadgeVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info';
-
-interface BadgeProps {
-  variant?: BadgeVariant;
-  children: ReactNode;
-  className?: string;
-}
-
-export const Badge = ({ variant = 'primary', children, className = '' }: BadgeProps) => {
-  const variantClasses = {
-    primary: 'bg-blue-100 text-blue-800',
-    secondary: 'bg-gray-100 text-gray-800',
-    success: 'bg-green-100 text-green-800',
-    danger: 'bg-red-100 text-red-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    info: 'bg-cyan-100 text-cyan-800',
-  };
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
-      {children}
-    </span>
-  );
-};
-
-interface TableProps {
-  children: ReactNode;
-  className?: string;
-}
-
-export const Table = ({ children, className = '' }: TableProps) => (
-  <div className="overflow-hidden rounded-lg border border-gray-200">
-    <table className={`min-w-full divide-y divide-gray-200 ${className}`}>
-      {children}
-    </table>
-  </div>
-);
-
-Table.Head = ({ children }: { children: ReactNode }) => (
-  <thead className="bg-gray-50">
+// Table Components
+const TableHead = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLTableSectionElement>) => (
+  <thead className={`bg-gray-50 ${className}`} {...props}>
     {children}
   </thead>
 );
 
-Table.Header = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <th scope="col" className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}>
-    {children}
-  </th>
-);
-
-Table.Body = ({ children }: { children: ReactNode }) => (
-  <tbody className="bg-white divide-y divide-gray-200">
+const TableBody = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLTableSectionElement>) => (
+  <tbody className={`bg-white divide-y divide-gray-200 ${className}`} {...props}>
     {children}
   </tbody>
 );
 
-Table.Row = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLTableRowElement>) => (
+const TableRow = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLTableRowElement>) => (
   <tr className={className} {...props}>
     {children}
   </tr>
 );
 
-Table.Cell = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${className}`}>
+const TableHeader = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.ThHTMLAttributes<HTMLTableCellElement>) => (
+  <th
+    scope="col"
+    className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}
+    {...props}
+  >
+    {children}
+  </th>
+);
+
+const TableCell = ({ children, className = '', ...props }: { children: ReactNode; className?: string } & React.TdHTMLAttributes<HTMLTableCellElement>) => (
+  <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500 ${className}`} {...props}>
     {children}
   </td>
 );
 
-// Add Table namespace for better intellisense
-declare module './ui' {
-  interface Table extends React.FC<TableProps> {
-    Head: React.FC<{ children: ReactNode }>;
-    Header: React.FC<{ children: ReactNode; className?: string }>;
-    Body: React.FC<{ children: ReactNode }>;
-    Row: React.FC<{ children: ReactNode; className?: string }>;
-    Cell: React.FC<{ children: ReactNode; className?: string }>;
-  }
-}
+export const Table = ({
+  children,
+  className = '',
+  ...props
+}: {
+  children: ReactNode;
+  className?: string;
+} & React.TableHTMLAttributes<HTMLTableElement>) => {
+  return (
+    <div className="overflow-x-auto">
+      <table
+        className={`min-w-full divide-y divide-gray-200 ${className}`}
+        {...props}
+      >
+        {children}
+      </table>
+    </div>
+  );
+};
+
+// Attach subcomponents to Table
+Table.Head = TableHead;
+Table.Body = TableBody;
+Table.Row = TableRow;
+Table.Header = TableHeader;
+Table.Cell = TableCell;
+
+export const Badge = ({
+  children,
+  variant = 'default',
+  className = '',
+}: {
+  children: ReactNode;
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error';
+  className?: string;
+}) => {
+  const variants = {
+    default: 'bg-gray-100 text-gray-800',
+    primary: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    error: 'bg-red-100 text-red-800',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variants[variant]} ${className}`}
+    >
+      {children}
+    </span>
+  );
+};
