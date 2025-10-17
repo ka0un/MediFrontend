@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Patient } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Button, Modal, Spinner, Input } from './ui';
+import { validatePhoneNumber, validateAddress, validateEmail, validateRequired } from '../utils/validation';
 
 type PatientFormData = Omit<Patient, 'id' | 'digitalHealthCardNumber'>;
 
@@ -12,6 +13,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
     const [deletingPatient, setDeletingPatient] = useState<Patient | null>(null);
     const [updatingPatient, setUpdatingPatient] = useState<Patient | null>(null);
     const [formData, setFormData] = useState<Partial<PatientFormData>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const fetchPatients = useCallback(async () => {
         setIsLoading(true);
@@ -61,15 +63,84 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
+        
+        // Validate specific fields on change
+        if (name === 'phone') {
+            const validation = validatePhoneNumber(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, phone: validation.message || '' }));
+            }
+        } else if (name === 'address') {
+            const validation = validateAddress(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, address: validation.message || '' }));
+            }
+        } else if (name === 'email') {
+            const validation = validateEmail(value);
+            if (!validation.isValid) {
+                setErrors(prev => ({ ...prev, email: validation.message || '' }));
+            }
+        }
+    };
+
+    const validateForm = (): boolean => {
+        const newErrors: Record<string, string> = {};
+        
+        // Validate required fields
+        if (!formData.name) {
+            newErrors.name = 'Full name is required';
+        }
+        
+        if (!formData.email) {
+            newErrors.email = 'Email is required';
+        } else {
+            const emailValidation = validateEmail(formData.email);
+            if (!emailValidation.isValid) {
+                newErrors.email = emailValidation.message || '';
+            }
+        }
+        
+        if (!formData.phone) {
+            newErrors.phone = 'Phone number is required';
+        } else {
+            const phoneValidation = validatePhoneNumber(formData.phone);
+            if (!phoneValidation.isValid) {
+                newErrors.phone = phoneValidation.message || '';
+            }
+        }
+        
+        // Validate optional fields if they have values
+        if (formData.address) {
+            const addressValidation = validateAddress(formData.address);
+            if (!addressValidation.isValid) {
+                newErrors.address = addressValidation.message || '';
+            }
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleUpdate = async () => {
         if (!updatingPatient) return;
+        
+        // Validate form before submission
+        if (!validateForm()) {
+            addNotification('error', 'Please fix the validation errors before submitting.');
+            return;
+        }
+        
         try {
             await api.updatePatient(updatingPatient.id, formData);
             addNotification('success', 'Patient updated successfully');
             setUpdatingPatient(null);
             setFormData({});
+            setErrors({});
             fetchPatients();
         } catch (error) {
             addNotification('error', error instanceof Error ? error.message : 'Failed to update patient');
@@ -125,6 +196,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                             value={formData.name || ''} 
                             onChange={handleFormChange} 
                             required 
+                            error={errors.name}
                         />
                         <Input 
                             label="Email" 
@@ -133,6 +205,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                             value={formData.email || ''} 
                             onChange={handleFormChange} 
                             required 
+                            error={errors.email}
                         />
                         <Input 
                             label="Phone" 
@@ -140,6 +213,8 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                             value={formData.phone || ''} 
                             onChange={handleFormChange} 
                             required 
+                            error={errors.phone}
+                            helperText="Enter 10-digit phone number (e.g., 1234567890)"
                         />
                         <Input 
                             label="Digital Health Card Number" 
@@ -165,6 +240,8 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                             name="address" 
                             value={formData.address || ''} 
                             onChange={handleFormChange} 
+                            error={errors.address}
+                            helperText="Enter full address (optional)"
                         />
                         <Input 
                             label="Allergies" 
