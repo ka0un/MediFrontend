@@ -84,11 +84,7 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-<<<<<<< HEAD
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management';
-=======
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'scan-qr' | 'provider-management' | 'medical-records';
->>>>>>> origin/main
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management'| 'medical-records';
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 

@@ -3,10 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { StatisticalReport, ReportFilters } from '../types';
 import * as api from '../services/api';
-import { PageTitle, Card, KpiCard, Button, Input, Select } from './ui';
-import { ReportsIcon } from './Icons';
+import { PageTitle, Card, KpiCard, Button, Input, Select, Table, Badge, Spinner } from './ui';
+import { ReportsIcon, UserIcon, HospitalIcon, StethoscopeIcon } from './Icons';
 
 const COLORS = ['#06b6d4', '#34d399', '#f59e0b', '#ef4444', '#6366f1', '#ec4899'];
+
+const chartTextColor = '#4B5563'; // text-gray-600
+const chartGridColor = '#E5E7EB'; // border-gray-200
+const chartBackground = '#FFFFFF'; // bg-white
 
 const today = new Date();
 const thirtyDaysAgo = new Date(new Date().setDate(today.getDate() - 30));
@@ -31,7 +35,9 @@ export default function ReportsDashboard({
     setActiveView?: (view: string) => void;
 }) {
     const [report, setReport] = useState<StatisticalReport | null>(null);
+    const [providers, setProviders] = useState<HealthcareProvider[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingProviders, setIsLoadingProviders] = useState(false);
     const [filters, setFilters] = useState<ReportFilters>(initialFilters);
     const [reportType, setReportType] = useState<ReportType>('statistical');
     const [granularity, setGranularity] = useState<Granularity>('daily');
@@ -44,14 +50,19 @@ export default function ReportsDashboard({
     const fetchReport = useCallback(async () => {
         setIsLoading(true);
         try {
-            const data = await api.getStatisticalReport(filters);
-            setReport(data);
+            const [reportData] = await Promise.all([
+                api.getStatisticalReport(filters),
+                fetchProviders()
+            ]);
+            console.log('Fetched report data:', reportData);
+            setReport(reportData);
         } catch (error) {
+            console.error('Error fetching report:', error);
             addNotification('error', 'Failed to fetch report');
         } finally {
             setIsLoading(false);
         }
-    }, [filters, addNotification]);
+    }, [filters, addNotification, fetchProviders]);
 
     useEffect(() => {
         fetchReport();
@@ -186,15 +197,70 @@ export default function ReportsDashboard({
                 </div>
             </Card>
 
-            {isLoading ? <p>Loading report...</p> : !report || report.message ? (
-                 <Card><p>{report?.message || 'No data available for the selected filters.'}</p></Card>
+            {isLoading ? (
+                <Card className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                        <Spinner className="mx-auto mb-4" />
+                        <p className="text-gray-600">Loading report data...</p>
+                    </div>
+                </Card>
+            ) : !report || report.message ? (
+                <Card>
+                    <div className="text-center py-8">
+                        <p className="text-gray-600">{report?.message || 'No data available for the selected filters.'}</p>
+                        <p className="text-sm text-gray-500 mt-2">Try adjusting your filters or check if the backend server is running.</p>
+                    </div>
+                </Card>
             ) : (
                 <>
+                    {/* Appointments Statistical Records Title */}
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800">Appointments Statistical Records</h2>
+                        <div className="w-16 h-1 bg-cyan-500 mt-2 rounded-full"></div>
+                    </div>
+
+                    {/* KPI Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                        <KpiCard title="Total Visits" value={report.kpis.totalVisits} icon={<ReportsIcon />} />
-                        <KpiCard title="Confirmed Appointments" value={report.kpis.confirmedAppointments} icon={<ReportsIcon />} />
-                        <KpiCard title="Total Revenue" value={`$${report.kpis.totalRevenue.toFixed(2)}`} icon={<ReportsIcon />} />
-                        <KpiCard title="Completion Rate" value={`${report.kpis.appointmentCompletionRate.toFixed(1)}%`} icon={<ReportsIcon />} />
+                        <div>
+                            <KpiCard 
+                                title="Total Visits" 
+                                value={report.kpis.totalVisits} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {filters.startDate} to {filters.endDate}
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Confirmed" 
+                                value={report.kpis.confirmedAppointments} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {((report.kpis.confirmedAppointments / report.kpis.totalVisits) * 100).toFixed(1)}% of total
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Total Revenue" 
+                                value={`$${report.kpis.totalRevenue.toFixed(2)}`} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                Avg: ${(report.kpis.totalRevenue / report.kpis.totalVisits).toFixed(2)}/visit
+                            </p>
+                        </div>
+                        <div>
+                            <KpiCard 
+                                title="Completion" 
+                                value={`${report.kpis.appointmentCompletionRate.toFixed(1)}%`} 
+                                icon={<ReportsIcon />}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                {report.kpis.completedAppointments || 0} completed
+                            </p>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
@@ -333,4 +399,4 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
             </div>
         </div>
     );
-}
+} 
