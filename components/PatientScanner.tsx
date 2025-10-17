@@ -92,7 +92,7 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
         }
 
         // Validate card number format: ABC-2024-123 or ABCD-2024-123
-        const cardNumberRegex = /^[A-Z]{3,4}-\d{4}-\d{3,}$/;
+        const cardNumberRegex = /^[A-Z]{1,4}-\d{4}-\d{3,}$/;
         if (!cardNumberRegex.test(patientId.trim())) {
             setValidationError('Invalid format. Expected: ABC-2024-123 or ABCD-2024-123');
             return;
