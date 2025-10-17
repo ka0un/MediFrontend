@@ -1,13 +1,11 @@
 // Service Worker for Offline Access (UC-04 A4)
 // This service worker caches medical records for offline access
 
-const CACHE_NAME = 'medi-offline-v1';
-const MEDICAL_RECORDS_CACHE = 'medical-records-cache';
+const CACHE_NAME = 'medi-offline-v2';
+const MEDICAL_RECORDS_CACHE = 'medical-records-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/App.tsx',
-  '/styles.css'
 ];
 
 // Install service worker and cache static assets
@@ -90,6 +88,9 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Take control of all pages immediately
+      return self.clients.claim();
     })
   );
 });
