@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './ui';
+import { otpService } from '../services/otpService';
 
 interface OtpVerificationModalProps {
     isOpen: boolean;
@@ -97,32 +98,28 @@ export const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
         setError('');
 
         try {
-            const response = await fetch('http://localhost:8080/api/otp/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    patientId,
-                    otpCode: code,
-                    staffUsername,
-                }),
+            // Use OTP service instead of direct fetch (DIP)
+            const response = await otpService.verifyOtp({
+                patientId,
+                otpCode: code,
+                staffUsername,
             });
 
-            const data = await response.json();
-
-            if (response.ok && data.success) {
+            if (response.success) {
                 onVerified();
                 handleClose();
             } else {
-                setError(data.message || 'Invalid OTP code. Please try again.');
+                setError(response.message || 'Invalid OTP code. Please try again.');
                 // Clear OTP inputs on error
                 setOtpCode(['', '', '', '', '', '']);
                 inputRefs.current[0]?.focus();
             }
         } catch (err) {
-            setError('Failed to verify OTP. Please try again.');
+            setError(err instanceof Error ? err.message : 'Failed to verify OTP. Please try again.');
             console.error('OTP verification error:', err);
+            // Clear OTP inputs on error
+            setOtpCode(['', '', '', '', '', '']);
+            inputRefs.current[0]?.focus();
         } finally {
             setIsVerifying(false);
         }
