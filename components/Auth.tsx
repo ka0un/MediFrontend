@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { AuthUser } from '../types';
 import { Card, Button, Input } from './ui';
 import { HealthCardIcon } from './Icons';
+import { validatePhoneNumber, validateAddress, validateEmail, validateRequired } from '../utils/validation';
 
 type AuthProps = {
     onLogin: (credentials: {username: string, password: string}) => Promise<AuthUser>;
@@ -13,6 +14,7 @@ type AuthProps = {
 export default function Auth({ onLogin, onRegister, addNotification }: AuthProps) {
     const [isRegister, setIsRegister] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -39,6 +41,47 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
         
         if (formData.get('password') !== formData.get('confirmPassword')) {
             addNotification('error', 'Passwords do not match.');
+            setIsLoading(false);
+            return;
+        }
+
+        // Validate form fields
+        const newErrors: Record<string, string> = {};
+        
+        const phone = formData.get('phone') as string;
+        const phoneValidation = validatePhoneNumber(phone);
+        if (!phoneValidation.isValid) {
+            newErrors.phone = phoneValidation.message || '';
+        }
+        
+        const email = formData.get('email') as string;
+        const emailValidation = validateEmail(email);
+        if (!emailValidation.isValid) {
+            newErrors.email = emailValidation.message || '';
+        }
+        
+        const name = formData.get('name') as string;
+        const nameValidation = validateRequired(name, 'Full Name');
+        if (!nameValidation.isValid) {
+            newErrors.name = nameValidation.message || '';
+        }
+        
+        const username = formData.get('username') as string;
+        const usernameValidation = validateRequired(username, 'Username');
+        if (!usernameValidation.isValid) {
+            newErrors.username = usernameValidation.message || '';
+        }
+        
+        const digitalHealthCardNumber = formData.get('digitalHealthCardNumber') as string;
+        const cardValidation = validateRequired(digitalHealthCardNumber, 'Digital Health Card Number');
+        if (!cardValidation.isValid) {
+            newErrors.digitalHealthCardNumber = cardValidation.message || '';
+        }
+        
+        setErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            addNotification('error', 'Please fix the validation errors before submitting.');
             setIsLoading(false);
             return;
         }
@@ -77,14 +120,20 @@ export default function Auth({ onLogin, onRegister, addNotification }: AuthProps
                 {isRegister ? (
                     <form onSubmit={handleRegister} className="space-y-4">
                          <h2 className="text-xl font-bold text-slate-700">Register as a new Patient</h2>
-                        <Input name="username" label="Username" required />
+                        <Input name="username" label="Username" required error={errors.username} />
                         <Input name="password" label="Password" type="password" required />
                         <Input name="confirmPassword" label="Confirm Password" type="password" required />
                         <hr className="my-2"/>
-                        <Input name="name" label="Full Name" required />
-                        <Input name="email" label="Email" type="email" required />
-                        <Input name="phone" label="Phone" required />
-                        <Input name="digitalHealthCardNumber" label="Digital Health Card Number" required />
+                        <Input name="name" label="Full Name" required error={errors.name} />
+                        <Input name="email" label="Email" type="email" required error={errors.email} />
+                        <Input 
+                            name="phone" 
+                            label="Phone" 
+                            required 
+                            error={errors.phone}
+                            helperText="Enter 10-digit phone number (e.g., 1234567890)"
+                        />
+                        <Input name="digitalHealthCardNumber" label="Digital Health Card Number" required error={errors.digitalHealthCardNumber} />
                         <Input name="dateOfBirth" label="Date of Birth" type="date" />
                         <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? 'Registering...' : 'Register'}</Button>
                     </form>

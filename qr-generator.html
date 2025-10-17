@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator - Patient Cards</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .qr-output {
+            margin-top: 40px;
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            display: none;
+        }
+        
+        .qr-output.show {
+            display: block;
+        }
+        
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        
+        .patient-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            text-align: left;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+            font-family: monospace;
+        }
+        
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+        
+        .sample-cards {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e8f4fd;
+            border-radius: 12px;
+            border: 2px dashed #667eea;
+        }
+        
+        .sample-cards h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .sample-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sample-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .sample-card:last-child {
+            margin-bottom: 0;
+        }
+        
+        .badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Patient QR Code Generator</h1>
+        <p class="subtitle">Generate QR codes for testing the Medical Records scanner</p>
+        
+        <div class="input-group">
+            <label for="patientId">Patient Health Card Number</label>
+            <input type="text" id="patientId" placeholder="e.g., HBC-12345" value="HBC-12345">
+        </div>
+        
+        <div class="input-group">
+            <label for="patientName">Patient Name (Optional)</label>
+            <input type="text" id="patientName" placeholder="e.g., John Doe" value="John Doe">
+        </div>
+        
+        <div class="input-group">
+            <label for="qrFormat">QR Code Format</label>
+            <select id="qrFormat">
+                <option value="simple">Simple (Card Number Only)</option>
+                <option value="json">JSON (Card Number + Name)</option>
+            </select>
+        </div>
+        
+        <button onclick="generateQR()">Generate QR Code</button>
+        
+        <div class="qr-output" id="qrOutput">
+            <h2 style="margin-bottom: 10px;">📱 Your QR Code</h2>
+            <p style="color: #666; margin-bottom: 20px;">Scan this with your Medical Records app</p>
+            
+            <div id="qrcode"></div>
+            
+            <div class="patient-info">
+                <div class="info-row">
+                    <span class="info-label">Patient ID:</span>
+                    <span class="info-value" id="displayId"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value" id="displayName"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Format:</span>
+                    <span class="info-value" id="displayFormat"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">QR Content:</span>
+                    <span class="info-value" id="displayContent" style="word-break: break-all;"></span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button onclick="downloadQR()">Download QR Code</button>
+                <button class="btn-secondary" onclick="printQR()">Print QR Code</button>
+            </div>
+        </div>
+        
+        <div class="sample-cards">
+            <h3>📋 Sample Patient Cards (Click to Generate)</h3>
+            
+            <div class="sample-card" onclick="fillSample('HBC-12345', 'John Doe')">
+                <div>
+                    <strong>John Doe</strong><br>
+                    <small style="color: #666;">HBC-12345</small>
+                </div>
+                <span class="badge">Sample 1</span>
+            </div>
+            
+            <div class="sample-card" onclick="fillSample('HBC-67890', 'Jane Smith')">
+                <div>
+                    <strong>Jane Smith</strong><br>
+                    <small style="color: #666;">HBC-67890</small>
+                </div>
+                <span class="badge">Sample 2</span>
+            </div>
+            
+            <div class="sample-card" onclick="fillSample('HBC-11111', 'Bob Johnson')">
+                <div>
+                    <strong>Bob Johnson</strong><br>
+                    <small style="color: #666;">HBC-11111</small>
+                </div>
+                <span class="badge">Sample 3</span>
+            </div>
+            
+            <div class="sample-card" onclick="fillSample('HBC-99999', 'Alice Williams')">
+                <div>
+                    <strong>Alice Williams</strong><br>
+                    <small style="color: #666;">HBC-99999</small>
+                </div>
+                <span class="badge">Sample 4</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentQRCode = null;
+        let currentContent = '';
+        
+        function generateQR() {
+            const patientId = document.getElementById('patientId').value.trim();
+            const patientName = document.getElementById('patientName').value.trim();
+            const format = document.getElementById('qrFormat').value;
+            
+            if (!patientId) {
+                alert('Please enter a patient ID');
+                return;
+            }
+            
+            // Clear previous QR code
+            document.getElementById('qrcode').innerHTML = '';
+            
+            // Determine content based on format
+            let content;
+            if (format === 'json') {
+                content = JSON.stringify({
+                    patientId: patientId,
+                    name: patientName || 'N/A'
+                });
+            } else {
+                content = patientId;
+            }
+            
+            currentContent = content;
+            
+            // Generate QR code
+            QRCode.toCanvas(content, {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function(error, canvas) {
+                if (error) {
+                    console.error(error);
+                    alert('Error generating QR code');
+                    return;
+                }
+                
+                document.getElementById('qrcode').appendChild(canvas);
+                currentQRCode = canvas;
+                
+                // Update display info
+                document.getElementById('displayId').textContent = patientId;
+                document.getElementById('displayName').textContent = patientName || 'N/A';
+                document.getElementById('displayFormat').textContent = format.toUpperCase();
+                document.getElementById('displayContent').textContent = content;
+                
+                // Show output
+                document.getElementById('qrOutput').classList.add('show');
+            });
+        }
+        
+        function downloadQR() {
+            if (!currentQRCode) return;
+            
+            const patientId = document.getElementById('patientId').value.trim();
+            const link = document.createElement('a');
+            link.download = `patient-qr-${patientId}.png`;
+            link.href = currentQRCode.toDataURL();
+            link.click();
+        }
+        
+        function printQR() {
+            const printWindow = window.open('', '', 'height=600,width=800');
+            const patientId = document.getElementById('patientId').value.trim();
+            const patientName = document.getElementById('patientName').value.trim();
+            
+            printWindow.document.write('<html><head><title>Patient QR Code</title>');
+            printWindow.document.write('<style>body{font-family:Arial;text-align:center;padding:40px;}');
+            printWindow.document.write('h1{margin-bottom:10px;}p{color:#666;margin-bottom:20px;}');
+            printWindow.document.write('.info{margin-top:20px;text-align:left;max-width:400px;margin-left:auto;margin-right:auto;}');
+            printWindow.document.write('.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd;}');
+            printWindow.document.write('</style></head><body>');
+            printWindow.document.write('<h1>Patient Health Card</h1>');
+            printWindow.document.write('<p>Scan this QR code to access medical records</p>');
+            if (currentQRCode) {
+                printWindow.document.write('<img src="' + currentQRCode.toDataURL() + '" style="max-width:300px;"/>');
+            }
+            printWindow.document.write('<div class="info">');
+            printWindow.document.write('<div class="info-row"><strong>Patient ID:</strong><span>' + patientId + '</span></div>');
+            printWindow.document.write('<div class="info-row"><strong>Name:</strong><span>' + (patientName || 'N/A') + '</span></div>');
+            printWindow.document.write('</div>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        function fillSample(id, name) {
+            document.getElementById('patientId').value = id;
+            document.getElementById('patientName').value = name;
+            generateQR();
+        }
+        
+        // Generate default QR on load
+        window.onload = function() {
+            generateQR();
+        };
+    </script>
+</body>
+</html>

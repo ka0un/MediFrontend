@@ -226,6 +226,8 @@ export interface AccessLog {
 
 export interface Notification {
     id: number;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'patient-not-found';
     message: string;
+    cardNumber?: string; // For patient not found notifications
+    onAction?: () => void; // For clickable actions like "Create New Patient"
 }

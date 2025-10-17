@@ -37,19 +37,33 @@ export const Button = ({ children, variant = 'primary', className = '', ...props
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
+  error?: string;
+  helperText?: string;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ label, id, ...props }, ref) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
-    <input
-      id={id}
-      ref={ref}
-      className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-      {...props}
-    />
-  </div>
-));
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ label, id, error, helperText, className = '', ...props }, ref) => {
+  const inputClasses = error 
+    ? 'mt-1 block w-full px-3 py-2 bg-white border border-red-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm'
+    : 'mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm';
+
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
+      <input
+        id={id}
+        ref={ref}
+        className={`${inputClasses} ${className}`}
+        {...props}
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+      {helperText && !error && (
+        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+      )}
+    </div>
+  );
+});
 
 // FIX: Changed to a type alias to correctly extend SelectHTMLAttributes
 export type SelectProps = {

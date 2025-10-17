@@ -1,0 +1,340 @@
+import React, { useState } from 'react';
+import { PageTitle } from './ui';
+import { PatientScanner } from './PatientScanner';
+import { PatientInfoCard } from './PatientInfoCard';
+import { MedicalRecordsDisplay } from './MedicalRecordsDisplay';
+import { useMedicalRecords } from '../hooks/useMedicalRecords';
+import { useOtpVerification } from '../hooks/useOtpVerification';
+import { CreatePatientModal, CreatePatientData } from './CreatePatientModal';
+import { OtpVerificationModal } from './OtpVerificationModal';
+import * as api from '../services/api';
+import type { AuthUser } from '../types';
+
+/**
+ * Props interface following Interface Segregation Principle
+ */
+interface StaffMedicalRecordsProps {
+    user: AuthUser;
+    addNotification: (type: 'success' | 'error' | 'patient-not-found', message: string, options?: { cardNumber?: string, onAction?: () => void }) => void;
+}
+
+/**
+ * StaffMedicalRecords Component
+ * 
+ * Main component for healthcare staff to access patient medical records
+ * 
+ * 
+ * Workflow:
+ * 1. Staff scans patient card or enters patient ID
+ * 2. System displays patient information for verification
+ * 3. Staff confirms patient identity to access full medical records
+ * 4. System displays comprehensive medical records with multiple tabs
+ */
+export const StaffMedicalRecords: React.FC<StaffMedicalRecordsProps> = ({
+    user,
+    addNotification,
+}) => {
+    const {
+        record,
+        isLoading,
+        error,
+        isOffline,
+        scanDigitalCard,
+        fetchRecordByPatientId,
+        downloadPDF,
+        clearRecord,
+    } = useMedicalRecords();
+
+    // Use OTP verification hook (SRP - separates OTP logic)
+    const {
+        maskedPhone: otpMaskedPhone,
+        sendOtp,
+        verifyOtp,
+    } = useOtpVerification();
+
+    // State to track if staff has confirmed patient identity
+    const [isIdentityConfirmed, setIsIdentityConfirmed] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [notFoundCardNumber, setNotFoundCardNumber] = useState<string>('');
+    const [showOtpModal, setShowOtpModal] = useState(false);
+
+    // Get staff ID from user (use username as staff ID for demo)
+    const staffId = user.username;
+
+    /**
+     * Handle QR code scan or card number entry
+     */
+    const handleScanSuccess = async (cardNumber: string, purpose: string) => {
+        try {
+            await scanDigitalCard(cardNumber, staffId, purpose);
+            setIsIdentityConfirmed(false); // Reset confirmation on new search
+            addNotification('success', 'Patient record retrieved successfully');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to scan card';
+            
+            // Check if error is "patient not found"
+            if (errorMessage.toLowerCase().includes('not found') || 
+                errorMessage.toLowerCase().includes('404') ||
+                errorMessage.toLowerCase().includes('no patient')) {
+                // Store card number for modal
+                setNotFoundCardNumber(cardNumber);
+                
+                // Show special notification with create button
+                addNotification('patient-not-found', errorMessage, {
+                    cardNumber: cardNumber,
+                    onAction: () => setShowCreateModal(true)
+                });
+            } else {
+                // Show regular error notification
+                addNotification('error', errorMessage);
+            }
+            
+            // Don't re-throw - we've handled the error with notification
+        }
+    };
+
+    /**
+     * Handle manual patient ID search
+     */
+    const handleManualSearch = async (patientIdStr: string, purpose: string) => {
+        try {
+            // Extract numeric ID from patient ID string (e.g., "HBC-12345" -> 12345)
+            const numericId = parseInt(patientIdStr.replace(/\D/g, ''), 10);
+            
+            if (isNaN(numericId)) {
+                throw new Error('Invalid patient ID format');
+            }
+
+            await fetchRecordByPatientId(numericId, staffId, purpose);
+            setIsIdentityConfirmed(false); // Reset confirmation on new search
+            addNotification('success', 'Patient record retrieved successfully');
+        } catch (err) {
+            addNotification('error', err instanceof Error ? err.message : 'Failed to fetch patient record');
+        }
+    };
+
+    /**
+     * Handle patient identity confirmation via OTP
+     * This is a critical step in the workflow to ensure proper patient identification
+     */
+    const handleConfirmIdentity = async () => {
+        if (!record) return;
+
+        try {
+            // Use OTP service instead of direct fetch (DIP)
+            const response = await sendOtp(record.patientId, staffId);
+
+            if (response.success) {
+                setShowOtpModal(true);
+                addNotification('success', 'OTP sent to patient\'s phone');
+            } else {
+                addNotification('error', response.message || 'Failed to send OTP');
+            }
+        } catch (err) {
+            addNotification('error', err instanceof Error ? err.message : 'Failed to send OTP. Please try again.');
+            console.error('OTP send error:', err);
+        }
+    };
+
+    /**
+     * Handle PDF download
+     */
+    const handleDownloadPDF = async () => {
+        if (!record) return;
+        
+        try {
+            await downloadPDF(record.patientId, staffId, 'Staff downloading medical records PDF');
+            addNotification('success', 'Medical record PDF downloaded successfully');
+        } catch (err) {
+            addNotification('error', err instanceof Error ? err.message : 'Failed to download PDF');
+        }
+    };
+
+    /**
+     * Handle starting a new search
+     */
+    const handleNewSearch = () => {
+        clearRecord();
+        setIsIdentityConfirmed(false);
+    };
+
+
+
+    /**
+     * Handle resending OTP
+     */
+    const handleResendOtp = async () => {
+        if (!record) return;
+
+        try {
+            // Use OTP service instead of direct fetch (DIP)
+            const response = await sendOtp(record.patientId, staffId);
+
+            if (!response.success) {
+                throw new Error(response.message || 'Failed to resend OTP');
+            }
+
+            addNotification('success', 'OTP resent successfully');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to resend OTP';
+            addNotification('error', errorMessage);
+            throw err;
+        }
+    };
+
+    /**
+     * Handle successful OTP verification
+     */
+    const handleOtpVerified = () => {
+        setIsIdentityConfirmed(true);
+        addNotification('success', 'Patient identity verified via OTP. Access granted to medical records.');
+    };
+
+    /**
+     * Handle creating a new patient profile
+     */
+    const handleCreatePatient = async (patientData: CreatePatientData) => {
+        try {
+            const newPatient = await api.createPatient(patientData);
+            setShowCreateModal(false);
+            addNotification('success', `Patient profile created successfully! Patient ID: ${newPatient.id}`);
+            
+            // Auto-search the newly created patient
+            if (patientData.digitalHealthCardNumber) {
+                const purpose = 'Medical record access';
+                await handleScanSuccess(patientData.digitalHealthCardNumber, purpose);
+            }
+            
+            return newPatient;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to create patient profile';
+            addNotification('error', errorMessage);
+            throw err;
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <PageTitle>Medical Records Access</PageTitle>
+
+            {/* Offline Indicator (UC-04 A4) */}
+            {isOffline && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div className="flex items-center">
+                        <svg className="w-5 h-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-medium text-yellow-800">
+                                Offline Mode Active
+                            </p>
+                            <p className="text-xs text-yellow-700 mt-1">
+                                You are offline. Showing cached medical records only. Changes will sync when connection is restored.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Patient Scanner - Always visible for new searches */}
+            {!record && (
+                <PatientScanner
+                    staffId={staffId}
+                    onScanSuccess={handleScanSuccess}
+                    onManualSearch={handleManualSearch}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {/* Patient Information Card - Shown after successful search */}
+            {record && !isIdentityConfirmed && (
+                <div>
+                    <PatientInfoCard
+                        record={record}
+                        onConfirmAccess={handleConfirmIdentity}
+                        showActions={true}
+                    />
+                    
+                    {/* New Search Button */}
+                    <div className="mt-4 flex justify-center">
+                        <button
+                            onClick={handleNewSearch}
+                            className="text-primary hover:text-primary-700 text-sm font-medium underline"
+                        >
+                            Search for a different patient
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Medical Records Display - Shown after identity confirmation */}
+            {record && isIdentityConfirmed && (
+                <div>
+                    {/* Patient Info Summary Bar */}
+                    <div className="bg-primary-50 border-l-4 border-primary-500 p-4 rounded mb-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-primary-800">
+                                    Viewing records for: <span className="font-bold">{record.name}</span>
+                                </p>
+                                <p className="text-xs text-primary-600 mt-1">
+                                    Patient ID: {record.digitalHealthCardNumber} | 
+                                    Last accessed: {new Date(record.accessedAt).toLocaleString()}
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleNewSearch}
+                                className="text-primary-700 hover:text-primary-900 text-sm font-medium underline"
+                            >
+                                New Search
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Medical Records */}
+                    <MedicalRecordsDisplay 
+                        record={record} 
+                        onDownloadPDF={handleDownloadPDF}
+                    />
+                </div>
+            )}
+
+            {/* Help Information */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Important Information</h3>
+                <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                    <li>All access to patient medical records is logged for security and compliance</li>
+                    <li>Enter the patient's ID to retrieve their medical records</li>
+                    <li>Patient identity verification via OTP is required before accessing records</li>
+                    <li>OTP will be sent to the patient's registered phone number</li>
+                    <li>Patient consent is required for sharing records with third parties</li>
+                    <li>Report any unauthorized access attempts immediately</li>
+                </ul>
+            </div>
+
+            {/* Create Patient Modal */}
+            <CreatePatientModal
+                isOpen={showCreateModal}
+                scannedCardNumber={notFoundCardNumber}
+                onClose={() => setShowCreateModal(false)}
+                onSubmit={handleCreatePatient}
+            />
+
+            {/* OTP Verification Modal */}
+            {record && (
+                <OtpVerificationModal
+                    isOpen={showOtpModal}
+                    patientName={record.name}
+                    maskedPhone={otpMaskedPhone}
+                    patientId={record.patientId}
+                    staffUsername={staffId}
+                    onClose={() => setShowOtpModal(false)}
+                    onVerified={handleOtpVerified}
+                    onResendOtp={handleResendOtp}
+                />
+            )}
+        </div>
+    );
+};
+
+export default StaffMedicalRecords;
