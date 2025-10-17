@@ -1,4 +1,4 @@
-import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType } from '../types';
+import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType, UtilizationReport, CreateUtilizationReportPayload, UpdateUtilizationReportPayload } from '../types';
 import { apiClient } from './apiClient';
 
 // Legacy BASE_URL kept for file download functions that need direct fetch
@@ -216,4 +216,63 @@ export const deleteTimeSlot = (timeSlotId: number): Promise<{ message: string }>
     return apiClient.delete<{ message: string }>(`/admin/timeslots/${timeSlotId}`);
 };
 
+// Utilization Report CRUD Operations
 
+/**
+ * CREATE - Generate a new utilization report
+ */
+export const createUtilizationReport = (data: CreateUtilizationReportPayload): Promise<UtilizationReport> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(res => handleResponse(res));
+};
+
+/**
+ * READ - Get all utilization reports
+ */
+export const getAllUtilizationReports = (): Promise<UtilizationReport[]> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports`).then(res => handleResponse(res));
+};
+
+/**
+ * READ - Get a specific utilization report by ID
+ */
+export const getUtilizationReportById = (id: number): Promise<UtilizationReport> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports/${id}`).then(res => handleResponse(res));
+};
+
+/**
+ * UPDATE - Modify an existing utilization report
+ */
+export const updateUtilizationReport = (id: number, data: UpdateUtilizationReportPayload): Promise<UtilizationReport> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(res => handleResponse(res));
+};
+
+/**
+ * DELETE - Remove a utilization report
+ */
+export const deleteUtilizationReport = (id: number): Promise<{ message: string }> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports/${id}`, {
+        method: 'DELETE'
+    }).then(res => handleResponse(res));
+};
+
+/**
+ * READ - Filter reports by department
+ */
+export const getUtilizationReportsByDepartment = (department: string): Promise<UtilizationReport[]> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports/filter/department/${department}`).then(res => handleResponse(res));
+};
+
+/**
+ * READ - Filter reports by doctor
+ */
+export const getUtilizationReportsByDoctor = (doctor: string): Promise<UtilizationReport[]> => {
+    return fetch(`${BASE_URL}/analytics/utilization-reports/filter/doctor/${doctor}`).then(res => handleResponse(res));
+};

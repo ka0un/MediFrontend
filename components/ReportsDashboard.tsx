@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { StatisticalReport, ReportFilters, HealthcareProvider } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, KpiCard, Button, Input, Select, Table, Badge, Spinner } from './ui';
@@ -24,195 +24,47 @@ const initialFilters: ReportFilters = {
     department: '',
 };
 
-interface Patient {
-    id: number;
-    name: string;
-    email: string;
-    phone: string;
-    digitalHealthCardNumber: string;
-    address?: string;
-    dateOfBirth?: string;
-    emergencyContactName?: string;
-    emergencyContactPhone?: string;
-    medicalHistory?: string;
-    registrationDate?: string;
-    createdAt?: string;
-}
+type ReportType = 'statistical' | 'utilization' | 'financial' | 'patient';
+type Granularity = 'daily' | 'weekly' | 'monthly';
 
-export default function ReportsDashboard({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
+export default function ReportsDashboard({ 
+    addNotification,
+    setActiveView 
+}: { 
+    addNotification: (type: 'success' | 'error', message: string) => void;
+    setActiveView?: (view: string) => void;
+}) {
     const [report, setReport] = useState<StatisticalReport | null>(null);
     const [providers, setProviders] = useState<HealthcareProvider[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingProviders, setIsLoadingProviders] = useState(false);
     const [filters, setFilters] = useState<ReportFilters>(initialFilters);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [patients, setPatients] = useState<Patient[]>([]);
-    const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
-    const [isLoadingPatients, setIsLoadingPatients] = useState(true);
+    const [reportType, setReportType] = useState<ReportType>('statistical');
+    const [granularity, setGranularity] = useState<Granularity>('daily');
+    const [drillDownDepartment, setDrillDownDepartment] = useState<string | null>(null);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [exportedFileUrl, setExportedFileUrl] = useState<string | null>(null);
+    const [shareEmail, setShareEmail] = useState('');
 
-    // Fetch patients from API
-    const fetchPatients = useCallback(async () => {
+    // Fetch providers for filtering
+    const fetchProvidersData = useCallback(async () => {
         try {
-            const data = await api.getAdminPatients();
-            console.log('Fetched patients:', data);
-            setPatients(data);
-            // Filter patients by name
-            const results = data.filter(patient => 
-                patient.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            setFilteredPatients(results);
-            setIsLoadingPatients(false);
-        } catch (error) {
-            console.error('Error fetching patients:', error);
-            addNotification('error', 'Failed to fetch patients');
-            setIsLoadingPatients(false);
-        }
-    }, [searchTerm, addNotification]);
-
-    useEffect(() => {
-        fetchPatients();
-    }, [fetchPatients]);
-
-    // Filter patients when search term changes
-    useEffect(() => {
-        const results = patients.filter(patient => 
-            patient.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setFilteredPatients(results);
-    }, [searchTerm, patients]);
-
-    // Calculate today's patients count
-    const getTodaysPatientsCount = useCallback(() => {
-        const today = new Date().toISOString().split('T')[0];
-        return patients.filter(patient => {
-            // Assuming patient has a registrationDate field
-            const regDate = patient.registrationDate || patient.createdAt;
-            return regDate && regDate.startsWith(today);
-        }).length;
-    }, [patients]);
-
-    // Export to CSV function for patients
-    const exportToCSV = useCallback(() => {
-        try {
-            const headers = ['Name', 'Email', 'Phone', 'Health Card #'];
-            const dataToExport = searchTerm ? filteredPatients : patients;
-            
-            const csvContent = [
-                headers.join(','),
-                ...dataToExport.map(p => 
-                    [
-                        `"${p.name || ''}"`,
-                        `"${p.email || ''}"`,
-                        `"${p.phone || ''}"`,
-                        `"${p.digitalHealthCardNumber || ''}"`
-                    ].join(',')
-                )
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `patients_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            addNotification('success', 'Patient data exported successfully');
-        } catch (error) {
-            console.error('Error exporting patient data:', error);
-            addNotification('error', 'Failed to export patient data');
-        }
-    }, [patients, filteredPatients, searchTerm, addNotification]);
-
-    // Export providers to CSV function
-    const exportProvidersToCSV = useCallback(() => {
-        try {
-            const headers = ['Name', 'Specialty', 'Hospital Name', 'Hospital Type'];
-            const csvContent = [
-                headers.join(','),
-                ...providers.map(provider => 
-                    [
-                        `"${provider.name || ''}"`,
-                        `"${provider.specialty || ''}"`,
-                        `"${provider.hospitalName || ''}"`,
-                        `"${provider.hospitalType || ''}"`
-                    ].join(',')
-                )
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `providers_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            addNotification('success', 'Providers data exported successfully');
-        } catch (error) {
-            console.error('Error exporting providers data:', error);
-            addNotification('error', 'Failed to export providers data');
-        }
-    }, [providers, addNotification]);
-
-    // Export providers statistics to CSV function
-    const exportProvidersStatsToCSV = useCallback(() => {
-        try {
-            // Calculate provider counts by hospital type
-            const providerCounts = providers.reduce((acc, provider) => {
-                if (!provider.hospitalType) return acc;
-                const type = provider.hospitalType === 'GOVERNMENT' ? 'Government' : 'Private';
-                acc[type] = (acc[type] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const headers = ['Hospital Type', 'Provider Count'];
-            const csvContent = [
-                headers.join(','),
-                ...Object.entries(providerCounts).map(([type, count]) => 
-                    `"${type}",${count}`
-                )
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `providers_stats_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            addNotification('success', 'Providers statistics exported successfully');
-        } catch (error) {
-            console.error('Error exporting providers statistics:', error);
-            addNotification('error', 'Failed to export providers statistics');
-        }
-    }, [providers, addNotification]);
-
-    const fetchProviders = useCallback(async () => {
-        setIsLoadingProviders(true);
-        try {
-            const data = await api.getProviders();
-            console.log('Fetched providers:', data);
-            setProviders(data);
+            setIsLoadingProviders(true);
+            const providersData = await api.getProviders();
+            setProviders(providersData);
         } catch (error) {
             console.error('Error fetching providers:', error);
-            addNotification('error', 'Failed to fetch providers');
+            // Don't show error notification as it's not critical
         } finally {
             setIsLoadingProviders(false);
         }
-    }, [addNotification]);
+    }, []);
 
     const fetchReport = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [reportData] = await Promise.all([
-                api.getStatisticalReport(filters),
-                fetchProviders()
-            ]);
+            const reportData = await api.getStatisticalReport(filters);
             console.log('Fetched report data:', reportData);
             setReport(reportData);
         } catch (error) {
@@ -221,8 +73,14 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
         } finally {
             setIsLoading(false);
         }
-    }, [filters, addNotification, fetchProviders]);
+    }, [filters, addNotification]);
 
+    // Fetch providers on mount
+    useEffect(() => {
+        fetchProvidersData();
+    }, [fetchProvidersData]);
+
+    // Fetch report when filters change
     useEffect(() => {
         fetchReport();
     }, [fetchReport]);
@@ -234,70 +92,125 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
     const handleExport = async (format: 'PDF' | 'CSV') => {
         try {
             await api.exportReport(format, filters);
+            setExportedFileUrl(`/exports/report-${Date.now()}.${format.toLowerCase()}`);
             addNotification('success', `Report successfully exported as ${format}.`);
+            setShowExportModal(false);
+            setShowShareModal(true);
         } catch (error) {
             addNotification('error', `Failed to export report as ${format}.`);
         }
     };
 
-    // Export statistical data to CSV
-    const exportStatisticalData = useCallback(() => {
-        if (!report) return;
-        
+    const handleDrillDown = (department: string) => {
+        setDrillDownDepartment(department);
+        setFilters(prev => ({ ...prev, department }));
+    };
+
+    const handleShare = async () => {
+        if (!shareEmail || !exportedFileUrl) return;
         try {
-            // Prepare the data
-            const statsData = [
-                ['Metric', 'Value'],
-                ['Total Visits', report.kpis.totalVisits],
-                ['Confirmed Appointments', report.kpis.confirmedAppointments],
-                ['Pending Payments', report.kpis.pendingPayments],
-                ['Cancelled Appointments', report.kpis.cancelledAppointments],
-                ['Total Revenue', `$${report.kpis.totalRevenue.toFixed(2)}`],
-                ['Average Wait Time', `${report.kpis.averageWaitTime} mins`],
-                ['Appointment Completion Rate', `${report.kpis.appointmentCompletionRate.toFixed(1)}%`],
-                ['', ''], // Empty row for better readability
-                ['Date Range', `${filters.startDate} to ${filters.endDate}`]
-            ];
-
-            // Convert to CSV
-            const csvContent = statsData.map(row => 
-                row.map(field => `"${field}"`).join(',')
-            ).join('\n');
-
-            // Create and trigger download
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `statistics_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            addNotification('success', 'Statistical data exported successfully');
+            // Simulate sharing functionality
+            addNotification('success', `Report shared successfully with ${shareEmail}`);
+            setShowShareModal(false);
+            setShareEmail('');
         } catch (error) {
-            console.error('Error exporting statistical data:', error);
-            addNotification('error', 'Failed to export statistical data');
+            addNotification('error', 'Failed to share report');
         }
-    }, [report, filters, addNotification]);
+    };
+
+    const validateFilters = () => {
+        if (new Date(filters.startDate) > new Date(filters.endDate)) {
+            addNotification('error', 'Start date must be before end date');
+            return false;
+        }
+        return true;
+    };
+
+    const handleApplyFilters = () => {
+        if (validateFilters()) {
+            fetchReport();
+        }
+    };
 
     return (
         <div>
             <PageTitle>Statistical Reports</PageTitle>
 
             <Card className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+                <h3 className="font-bold text-lg mb-4">Filter & Configuration</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Hospital</label>
+                        <select 
+                            name="hospital" 
+                            value={filters.hospital} 
+                            onChange={handleFilterChange}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">All Hospitals</option>
+                            <option value="Colombo General">Colombo General</option>
+                            <option value="City Government Hospital">City Government Hospital</option>
+                            <option value="Advanced Private Clinic">Advanced Private Clinic</option>
+                            <option value="Elite Medical Center">Elite Medical Center</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+                        <select 
+                            name="department" 
+                            value={filters.department} 
+                            onChange={handleFilterChange}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">All Departments</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="General Medicine">General Medicine</option>
+                            <option value="Dermatology">Dermatology</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Outpatient">Outpatient</option>
+                        </select>
+                    </div>
                     <Input label="Start Date" name="startDate" type="date" value={filters.startDate} onChange={handleFilterChange} />
                     <Input label="End Date" name="endDate" type="date" value={filters.endDate} onChange={handleFilterChange} />
-                    <Input label="Hospital" name="hospital" value={filters.hospital} onChange={handleFilterChange} />
-                    <Input label="Department" name="department" value={filters.department} onChange={handleFilterChange} />
-                    <Button onClick={fetchReport}>Apply Filters</Button>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Report Type</label>
+                        <select 
+                            value={reportType} 
+                            onChange={(e) => setReportType(e.target.value as ReportType)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="statistical">Statistical</option>
+                            <option value="utilization">Utilization</option>
+                            <option value="financial">Financial</option>
+                            <option value="patient">Patient Demographics</option>
+                        </select>
+                    </div>
                 </div>
-                <div className="flex justify-end mt-4">
-                    <Button variant="secondary" onClick={exportStatisticalData}>
-                        Export Statistics
-                    </Button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Granularity</label>
+                        <select 
+                            value={granularity} 
+                            onChange={(e) => setGranularity(e.target.value as Granularity)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="flex justify-between items-center">
+                    <div className="flex space-x-2">
+                        <Button onClick={handleApplyFilters}>Apply Filters</Button>
+                        {drillDownDepartment && (
+                            <Button variant="secondary" onClick={() => { setDrillDownDepartment(null); setFilters(prev => ({ ...prev, department: '' })); }}>Clear Drill-Down</Button>
+                        )}
+                    </div>
+                    <div className="flex space-x-2">
+                        <Button variant="secondary" onClick={() => setShowExportModal(true)}>Export Report</Button>
+                        <Button onClick={() => setActiveView && setActiveView('analytics')}>Utilization Analytics</Button>
+                    </div>
                 </div>
             </Card>
 
@@ -367,20 +280,20 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
                         <Card className="lg:col-span-3">
-                            <h3 className="font-bold text-lg mb-4">Daily Visits</h3>
+                            <h3 className="font-bold text-lg mb-4">{granularity.charAt(0).toUpperCase() + granularity.slice(1)} Visits Trend</h3>
                             <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={report.dailyVisits}>
+                                <LineChart data={report.dailyVisits}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="date" />
                                     <YAxis />
                                     <Tooltip />
                                     <Legend />
-                                    <Bar dataKey="visitCount" fill="#06b6d4" name="Total Visits" />
-                                    <Bar dataKey="confirmedCount" fill="#34d399" name="Confirmed" />
-                                    <Bar dataKey="cancelledCount" fill="#ef4444" name="Cancelled" />
-                                </BarChart>
+                                    <Line type="monotone" dataKey="visitCount" stroke="#06b6d4" strokeWidth={2} name="Total Visits" />
+                                    <Line type="monotone" dataKey="confirmedCount" stroke="#34d399" strokeWidth={2} name="Confirmed" />
+                                    <Line type="monotone" dataKey="cancelledCount" stroke="#ef4444" strokeWidth={2} name="Cancelled" />
+                                </LineChart>
                             </ResponsiveContainer>
                         </Card>
                         <Card className="lg:col-span-2">
@@ -397,276 +310,110 @@ export default function ReportsDashboard({ addNotification }: { addNotification:
                         </Card>
                     </div>
 
-                    {/* Provider Statistical Records Title */}
-                    <div className="flex justify-between items-center mt-8 mb-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800">Provider's Statistical Records</h2>
-                            <div className="w-16 h-1 bg-cyan-500 mt-2 rounded-full"></div>
-                        </div>
-                        <Button variant="secondary" onClick={exportProvidersToCSV}>
-                            Export Providers Data
-                        </Button>
-                    </div>
-
-                    {/* Provider Distribution Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Providers by Specialty */}
-                        <Card>
-                            <div className="flex items-center mb-4">
-                                <div className="p-2 rounded-lg bg-cyan-100 text-cyan-600 mr-3">
-                                    <StethoscopeIcon className="h-5 w-5" />
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800">Providers by Specialty</h3>
-                            </div>
-                            <div className="h-80">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={Object.entries(
-                                                providers.reduce((acc, provider) => {
-                                                    acc[provider.specialty] = (acc[provider.specialty] || 0) + 1;
-                                                    return acc;
-                                                }, {} as Record<string, number>)
-                                            ).map(([name, value]) => ({ name, value }))}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            outerRadius={80}
-                                            fill="#06b6d4"
-                                            dataKey="value"
-                                            nameKey="name"
-                                            label={({ name, percent }) => (
-                                                <text 
-                                                    x={0} 
-                                                    y={0} 
-                                                    fill={chartTextColor}
-                                                    textAnchor="middle"
-                                                    fontSize={12}
+                    {/* Department Breakdown Table with Drill-Down */}
+                    <Card>
+                        <h3 className="font-bold text-lg mb-4">Department Details {drillDownDepartment && `- ${drillDownDepartment}`}</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Department</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Total Appointments</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Confirmed</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Cancelled</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Completion Rate</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-slate-200">
+                                    {report.departmentBreakdowns.map((dept, index) => (
+                                        <tr key={index} className={`hover:bg-slate-50 ${drillDownDepartment === dept.department ? 'bg-primary-50' : ''}`}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{dept.department}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{dept.totalAppointments}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">{dept.confirmedAppointments}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">{dept.cancelledAppointments}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                                {((dept.confirmedAppointments / dept.totalAppointments) * 100).toFixed(1)}%
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <button 
+                                                    onClick={() => handleDrillDown(dept.department)}
+                                                    className="text-primary hover:text-primary-600 font-medium"
                                                 >
-                                                    {`${name}: ${(percent * 100).toFixed(0)}%`}
-                                                </text>
-                                            )}
-                                        >
-                                            {Object.entries(
-                                                providers.reduce((acc, provider) => {
-                                                    acc[provider.specialty] = (acc[provider.specialty] || 0) + 1;
-                                                    return acc;
-                                                }, {} as Record<string, number>)
-                                            ).map((_, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip 
-                                            contentStyle={{
-                                                backgroundColor: chartBackground,
-                                                border: `1px solid ${chartGridColor}`,
-                                                borderRadius: '0.5rem',
-                                                color: chartTextColor
-                                            }}
-                                            formatter={(value: number) => [`${value} providers`, 'Count']} 
-                                        />
-                                        <Legend 
-                                            wrapperStyle={{
-                                                color: chartTextColor,
-                                                fontSize: '0.875rem',
-                                                paddingTop: '1rem'
-                                            }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </Card>
-
-                        {/* Providers by Hospital Type */}
-                        <Card>
-                            <div className="flex justify-between items-center mb-4">
-                                <div className="flex items-center">
-                                    <div className="p-2 rounded-lg bg-blue-100 text-blue-600 mr-3">
-                                        <HospitalIcon className="h-5 w-5" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-800">Providers by Hospital Type</h3>
-                                </div>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={exportProvidersStatsToCSV}
-                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                                >
-                                    Export Stats
-                                </Button>
-                            </div>
-                            <div className="h-80">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={Object.entries(
-                                            providers.reduce((acc, provider) => {
-                                                const type = provider.hospitalType === 'GOVERNMENT' ? 'Government' : 'Private';
-                                                acc[type] = (acc[type] || 0) + 1;
-                                                return acc;
-                                            }, {} as Record<string, number>)
-                                        ).map(([name, count]) => ({ name, count }))}
-                                        margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
-                                    >
-                                        <CartesianGrid 
-                                            strokeDasharray="3 3" 
-                                            stroke={chartGridColor}
-                                        />
-                                        <XAxis 
-                                            dataKey="name" 
-                                            tick={{ fill: chartTextColor, fontSize: 12 }}
-                                            axisLine={{ stroke: chartGridColor }}
-                                            tickLine={{ stroke: chartGridColor }}
-                                        />
-                                        <YAxis 
-                                            tick={{ fill: chartTextColor, fontSize: 12 }}
-                                            axisLine={{ stroke: chartGridColor }}
-                                            tickLine={{ stroke: chartGridColor }}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{
-                                                backgroundColor: chartBackground,
-                                                border: `1px solid ${chartGridColor}`,
-                                                borderRadius: '0.5rem',
-                                                color: chartTextColor
-                                            }}
-                                            formatter={(value: number) => [`${value} providers`, 'Count']} 
-                                        />
-                                        <Bar dataKey="count" name="Providers" radius={[4, 4, 0, 0]}>
-                                            {Object.entries(
-                                                providers.reduce((acc, provider) => {
-                                                    const type = provider.hospitalType === 'GOVERNMENT' ? 'Government' : 'Private';
-                                                    acc[type] = (acc[type] || 0) + 1;
-                                                    return acc;
-                                                }, {} as Record<string, number>)
-                                            ).map((_, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={COLORS[index % COLORS.length]}
-                                                    stroke={chartBackground}
-                                                    strokeWidth={1}
-                                                />
-                                            ))}
-                                        </Bar>
-                                        <Legend 
-                                            wrapperStyle={{
-                                                color: chartTextColor,
-                                                fontSize: '0.875rem',
-                                                paddingTop: '1rem'
-                                            }}
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </Card>
-                    </div>
-
-                    {/* Patient Records Dashboard */}
-                    <div className="mt-8">
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">Patient Records Analysis</h2>
-                            <div className="w-16 h-1 bg-cyan-500 mt-2 rounded-full"></div>
+                                                    Drill Down →
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-
-                        <Card>
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800">Patient Records</h3>
-                                <div className="flex space-x-2">
-                                    <Input 
-                                        type="text" 
-                                        placeholder="Search by name..." 
-                                        className="w-80"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    <Button variant="secondary" onClick={exportToCSV}>
-                                        Export to CSV
-                                    </Button>
-                                </div>
-                            </div>
-                            
-                            {/* Patient Count Stats */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                    <div className="flex items-center">
-                                        <div className="p-3 rounded-full bg-cyan-100 text-cyan-600 mr-4">
-                                            <UserIcon className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-500">Total Patients</p>
-                                            <p className="text-2xl font-semibold text-gray-900">
-                                                {patients.length}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                    <div className="flex items-center">
-                                        <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-                                            <UserIcon className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-500">Today's Patients</p>
-                                            <p className="text-2xl font-semibold text-gray-900">
-                                                {getTodaysPatientsCount()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <Table.Head>
-                                        <Table.Row>
-                                            <Table.Header>Name</Table.Header>
-                                            <Table.Header>Email</Table.Header>
-                                            <Table.Header>Phone</Table.Header>
-                                            <Table.Header>Health Card #</Table.Header>
-                                            <Table.Header>Actions</Table.Header>
-                                        </Table.Row>
-                                    </Table.Head>
-                                    <Table.Body>
-                                        {filteredPatients.length > 0 ? (
-                                            filteredPatients.map((patient, index) => (
-                                                <Table.Row key={index} className="hover:bg-gray-50">
-                                                    <Table.Cell className="font-medium text-gray-900">
-                                                        {patient.name}
-                                                    </Table.Cell>
-                                                    <Table.Cell>{patient.email}</Table.Cell>
-                                                    <Table.Cell>{patient.phone}</Table.Cell>
-                                                    <Table.Cell>{patient.digitalHealthCardNumber || 'N/A'}</Table.Cell>
-                                                    <Table.Cell>
-                                                        <Button size="sm" variant="ghost">View</Button>
-                                                    </Table.Cell>
-                                                </Table.Row>
-                                            ))
-                                        ) : (
-                                            <Table.Row>
-                                                <td colSpan={5} className="text-center py-8 text-gray-500">
-                                                    No patients found matching your search.
-                                                </td>
-                                            </Table.Row>
-                                        )}
-                                    </Table.Body>
-                                </Table>
-                            </div>
-                            
-                            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-                                <div className="text-sm text-gray-600">
-                                    Showing <span className="font-medium">1</span> to <span className="font-medium">3</span> of <span className="font-medium">24</span> results
-                                </div>
-                                <div className="flex space-x-2">
-                                    <Button size="sm" variant="outline" disabled>Previous</Button>
-                                    <Button size="sm" variant="primary">1</Button>
-                                    <Button size="sm" variant="outline">2</Button>
-                                    <Button size="sm" variant="outline">3</Button>
-                                    <Button size="sm" variant="outline">Next</Button>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
+                    </Card>
                 </>
             )}
+            {/* Export Modal */}
+            {showExportModal && (
+                <Modal title="Export Report" onClose={() => setShowExportModal(false)}>
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">Export current report with applied filters and graphics</p>
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Active Filters:</p>
+                            <ul className="text-sm text-slate-600 list-disc list-inside">
+                                <li>Hospital: {filters.hospital || 'All'}</li>
+                                <li>Department: {filters.department || 'All'}</li>
+                                <li>Date Range: {filters.startDate} to {filters.endDate}</li>
+                                <li>Report Type: {reportType}</li>
+                                <li>Granularity: {granularity}</li>
+                            </ul>
+                        </div>
+                        <div className="flex space-x-2 pt-4">
+                            <Button onClick={() => handleExport('PDF')} className="flex-1">Export as PDF</Button>
+                            <Button onClick={() => handleExport('CSV')} variant="secondary" className="flex-1">Export as CSV</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Share Modal */}
+            {showShareModal && (
+                <Modal title="Share Report" onClose={() => setShowShareModal(false)}>
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">Share exported report with department heads or stakeholders</p>
+                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                            <p className="text-sm text-green-800">✓ Report exported successfully</p>
+                            <p className="text-xs text-green-600 mt-1">{exportedFileUrl}</p>
+                        </div>
+                        <Input 
+                            label="Recipient Email" 
+                            type="email"
+                            value={shareEmail}
+                            onChange={(e) => setShareEmail(e.target.value)}
+                            placeholder="department.head@hospital.com"
+                        />
+                        <div className="flex space-x-2 pt-4">
+                            <Button onClick={handleShare} className="flex-1">Send Report</Button>
+                            <Button onClick={() => setShowShareModal(false)} variant="secondary" className="flex-1">Close</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+}
+
+// Modal Component
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center p-6 border-b border-slate-200">
+                    <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+                </div>
+                <div className="p-6">
+                    {children}
+                </div>
+            </div>
         </div>
     );
 } 

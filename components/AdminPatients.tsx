@@ -429,6 +429,96 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                     </div>
                 </form>
             </Modal>
+
+            <Modal isOpen={!!updatingPatient} onClose={() => setUpdatingPatient(null)} title={`Update Patient: ${updatingPatient?.name}`}>
+                <form onSubmit={(e) => { e.preventDefault(); handleUpdate(); }} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input 
+                            label="Full Name" 
+                            name="name" 
+                            value={formData.name || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            error={errors.name}
+                        />
+                        <Input 
+                            label="Email" 
+                            name="email" 
+                            type="email" 
+                            value={formData.email || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            error={errors.email}
+                        />
+                        <Input 
+                            label="Phone" 
+                            name="phone" 
+                            value={formData.phone || ''} 
+                            onChange={handleFormChange} 
+                            required 
+                            error={errors.phone}
+                            helperText="Enter 10-digit phone number (e.g., 1234567890)"
+                        />
+                        <Input 
+                            label="Digital Health Card Number" 
+                            name="digitalHealthCardNumber" 
+                            value={updatingPatient?.digitalHealthCardNumber || ''} 
+                            disabled 
+                        />
+                        <Input 
+                            label="Date of Birth" 
+                            name="dateOfBirth" 
+                            type="date" 
+                            value={formData.dateOfBirth || ''} 
+                            onChange={handleFormChange} 
+                        />
+                        <Input 
+                            label="Blood Type" 
+                            name="bloodType" 
+                            value={formData.bloodType || ''} 
+                            onChange={handleFormChange} 
+                        />
+                        <Input 
+                            label="Address" 
+                            name="address" 
+                            value={formData.address || ''} 
+                            onChange={handleFormChange} 
+                            error={errors.address}
+                            helperText="Enter full address (optional)"
+                        />
+                        <Input 
+                            label="Allergies" 
+                            name="allergies" 
+                            value={formData.allergies || ''} 
+                            onChange={handleFormChange} 
+                        />
+                        <Input 
+                            label="Emergency Contact Name" 
+                            name="emergencyContactName" 
+                            value={formData.emergencyContactName || ''} 
+                            onChange={handleFormChange} 
+                        />
+                        <Input 
+                            label="Emergency Contact Phone" 
+                            name="emergencyContactPhone" 
+                            value={formData.emergencyContactPhone || ''} 
+                            onChange={handleFormChange} 
+                        />
+                        <div className="md:col-span-2">
+                            <Input 
+                                label="Medical History" 
+                                name="medicalHistory" 
+                                value={formData.medicalHistory || ''} 
+                                onChange={handleFormChange} 
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                        <Button variant="secondary" onClick={() => setUpdatingPatient(null)}>Cancel</Button>
+                        <Button type="submit">Update Patient</Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
