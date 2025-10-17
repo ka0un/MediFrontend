@@ -140,8 +140,6 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
                     className={`relative rounded-md shadow-lg p-4 mb-2 ${
                         n.type === 'success' 
                             ? 'bg-green-500' 
-                            : n.type === 'patient-not-found'
-                            ? 'bg-yellow-500'
                             : 'bg-red-500'
                     } text-white`}
                 >
@@ -155,7 +153,7 @@ const NotificationArea = ({ notifications, removeNotification }: { notifications
                                         n.onAction!();
                                         removeNotification(n.id);
                                     }}
-                                    className="text-white underline cursor-pointer hover:text-yellow-100 font-medium"
+                                    className="text-white underline cursor-pointer hover:text-gray-200 font-medium"
                                 >
                                     Create New Patient
                                 </span>

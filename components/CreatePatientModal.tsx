@@ -90,6 +90,13 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
 
         if (!formData.digitalHealthCardNumber.trim()) {
             newErrors.digitalHealthCardNumber = 'Health card number is required';
+        } else {
+            // Validate format: ABC-2024-123 or ABCD-2024-123
+            // Format: 3-4 uppercase letters, dash, year (4 digits), dash, minimum 3 digits
+            const cardNumberRegex = /^[A-Z]{3,4}-\d{4}-\d{3,}$/;
+            if (!cardNumberRegex.test(formData.digitalHealthCardNumber)) {
+                newErrors.digitalHealthCardNumber = 'Invalid format. Expected: ABC-2024-123 or ABCD-2024-123';
+            }
         }
 
         if (formData.dateOfBirth) {
@@ -225,7 +232,7 @@ export const CreatePatientModal: React.FC<CreatePatientModalProps> = ({
                                     name="digitalHealthCardNumber"
                                     value={formData.digitalHealthCardNumber}
                                     onChange={handleChange}
-                                    placeholder="HBC-12345"
+                                    placeholder="ABC-2024-123 or ABCD-2024-123"
                                     error={errors.digitalHealthCardNumber}
                                     disabled={!!scannedCardNumber}
                                 />

@@ -32,6 +32,7 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
 }) => {
     const [patientId, setPatientId] = React.useState('');
     const [showScanner, setShowScanner] = React.useState(false);
+    const [validationError, setValidationError] = React.useState('');
 
     /**
      * Play success beep sound
@@ -67,6 +68,7 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
         
         setPatientId(decodedText);
         setShowScanner(false);
+        setValidationError('');
         
         // Automatically trigger search after successful scan
         const purpose = 'Medical record access';
@@ -81,9 +83,18 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
     // Handle manual search
     const handleManualSearchWithError = async (e: React.FormEvent) => {
         e.preventDefault();
+        setValidationError('');
 
         // Validation
         if (!patientId.trim()) {
+            setValidationError('Please enter a patient card number');
+            return;
+        }
+
+        // Validate card number format: ABC-2024-123 or ABCD-2024-123
+        const cardNumberRegex = /^[A-Z]{3,4}-\d{4}-\d{3,}$/;
+        if (!cardNumberRegex.test(patientId.trim())) {
+            setValidationError('Invalid format. Expected: ABC-2024-123 or ABCD-2024-123');
             return;
         }
 
@@ -128,9 +139,13 @@ export const PatientScanner: React.FC<PatientScannerProps> = ({
                     <Input
                         label="Enter card number manually"
                         value={patientId}
-                        onChange={(e) => setPatientId(e.target.value)}
-                        placeholder="HBC-12345"
+                        onChange={(e) => {
+                            setPatientId(e.target.value);
+                            setValidationError(''); // Clear error on input change
+                        }}
+                        placeholder="ABC-2024-123 or ABCD-2024-123"
                         className="max-w-xs mx-auto mt-4"
+                        error={validationError}
                     />
                 </div>
 
