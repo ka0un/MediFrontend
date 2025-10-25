@@ -195,7 +195,7 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
             )}
 
             {/* Header Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
+            <div className="bg-gradient-to-r from-[#06B6D4] to-[#06B6D4] rounded-xl p-6 text-white mb-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -203,12 +203,12 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
                         </div>
         <div>
                             <h1 className="text-3xl font-bold">My Account</h1>
-                            <p className="text-blue-100 mt-1">Manage your personal information and preferences</p>
+                            <p className="text-[#06B6D4] mt-1">Manage your personal information and preferences</p>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="text-2xl font-bold">{patient?.name}</div>
-                        <div className="text-blue-100 text-sm">Patient Profile</div>
+                        <div className="text-[#06B6D4] text-sm">Patient Profile</div>
                     </div>
                 </div>
             </div>
@@ -266,7 +266,7 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
                             className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg transition-colors duration-200 ${
                                 isBackendDown 
                                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                    : 'text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                    : 'text-white bg-[#06B6D4] hover:bg-[#06B6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#06B6D4]'
                             }`}
                         >
                             <EditIcon className="w-4 h-4 mr-2" />
@@ -397,7 +397,7 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
                                 value={formData.medicalHistory}
                                 onChange={(e) => setFormData(prev => ({ ...prev, medicalHistory: e.target.value }))}
                                 rows={4}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-transparent resize-none"
                                 placeholder="Enter your medical history, previous surgeries, chronic conditions, etc."
                             />
                         </div>

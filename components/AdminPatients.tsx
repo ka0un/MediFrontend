@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Patient } from '../types';
 import * as api from '../services/api';
@@ -160,7 +159,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
     return (
         <div className="space-y-6">
             {/* Header Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
+            <div className="bg-gradient-to-r from-[#06B6D4] to-[#06B6D4] rounded-xl p-6 text-white">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -168,12 +167,12 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold">Patient Management</h1>
-                            <p className="text-blue-100 mt-1">Manage all patient accounts and information</p>
+                            <p className="text-[#06B6D4] mt-1">Manage all patient accounts and information</p>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="text-2xl font-bold">{patients.length}</div>
-                        <div className="text-blue-100 text-sm">Total Patients</div>
+                        <div className="text-[#06B6D4] text-sm">Total Patients</div>
                     </div>
                 </div>
             </div>
@@ -188,7 +187,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                                 placeholder="Search patients by name, email, phone, or health card..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#06B6D4] focus:border-transparent transition-all duration-200"
                             />
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,7 +250,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex-shrink-0">
-                                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                                                        <div className="w-12 h-12 bg-gradient-to-br from-[#06B6D4] to-[#06B6D4] rounded-full flex items-center justify-center">
                                                             <span className="text-white font-semibold text-lg">
                                                                 {patient.name.charAt(0).toUpperCase()}
                                                             </span>
@@ -280,7 +279,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                                                 </div>
                                             </td>
                                             <td className="px-6 py-6">
-                                                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#06B6D4]/10 text-[#06B6D4]">
                                                     {patient.digitalHealthCardNumber}
                                                 </div>
                                             </td>
@@ -288,7 +287,7 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
                                                 <div className="flex items-center space-x-2">
                                                     <button
                                                         onClick={() => handleUpdateClick(patient)}
-                                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                                                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#06B6D4] hover:bg-[#06B6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#06B6D4] transition-colors duration-200"
                                                     >
                                                         <EditIcon className="w-4 h-4 mr-1" />
                                                         Edit
@@ -328,11 +327,11 @@ export default function AdminPatients({ addNotification }: { addNotification: (t
             </Modal>
 
             <Modal isOpen={!!updatingPatient} onClose={() => setUpdatingPatient(null)} title={`Edit Patient Information`}>
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="mb-6 p-4 bg-[#06B6D4]/50 rounded-lg border border-[#06B6D4]/30">
                     <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#06B6D4] to-[#06B6D4] rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold">
-                                {updatingPatient?.name.charAt(0).toUpperCase()}
+                                {updatingPatient?.name}
                             </span>
                         </div>
                         <div>
