@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Patient, AuthUser } from '../types';
 import * as api from '../services/api';
 import { PageTitle, Card, Button, Input, Spinner } from './ui';
 import { validatePhoneNumber, validateAddress, validateEmail, validateRequired } from '../utils/validation';
-import { UserIcon, HealthCardIcon, StethoscopeIcon, CalendarIcon, EditIcon, PlusIcon } from './Icons';
+import { UserIcon, HealthCardIcon, StethoscopeIcon, EditIcon } from './Icons';
 
 type PatientFormData = Omit<Patient, 'id' | 'digitalHealthCardNumber'>;
 
@@ -13,13 +12,9 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
     const [formData, setFormData] = useState<Partial<PatientFormData>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [activeSection, setActiveSection] = useState<'personal' | 'medical' | 'payment'>('personal');
+    const [activeSection, setActiveSection] = useState<'personal' | 'medical'>('personal');
     const [isEditing, setIsEditing] = useState(false);
     const [isBackendDown, setIsBackendDown] = useState(false);
-    const [paymentMethods, setPaymentMethods] = useState([
-        { id: 1, type: 'Credit Card', last4: '4242', expiry: '12/25', isDefault: true },
-        { id: 2, type: 'Debit Card', last4: '1234', expiry: '08/26', isDefault: false }
-    ]);
 
     // Check if backend is down based on error type
     const checkBackendStatus = (error: any) => {
@@ -248,21 +243,6 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
                                 <span>Medical Information</span>
                             </div>
                         </button>
-                        <button
-                            onClick={() => setActiveSection('payment')}
-                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                                activeSection === 'payment'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <div className="flex items-center space-x-2">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                                <span>Payment Options</span>
-                            </div>
-                        </button>
                     </nav>
                 </div>
             </div>
@@ -433,94 +413,6 @@ export default function PatientAccount({ user, addNotification }: { user: AuthUs
                         </div>
                 </form>
             </Card>
-            )}
-
-            {activeSection === 'payment' && (
-                <Card className="mb-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-purple-100 rounded-lg">
-                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-semibold text-gray-900">Payment Options</h2>
-                                <p className="text-sm text-gray-600">Manage your payment methods and billing preferences</p>
-                            </div>
-                        </div>
-                        <button 
-                            disabled={isBackendDown}
-                            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg transition-colors duration-200 ${
-                                isBackendDown 
-                                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                    : 'text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
-                            }`}
-                        >
-                            <PlusIcon className="w-4 h-4 mr-2" />
-                            {isBackendDown ? 'Add Unavailable' : 'Add Payment Method'}
-                        </button>
-                    </div>
-
-                    <div className="space-y-4">
-                        {paymentMethods.map((method) => (
-                            <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                                <div className="flex items-center space-x-4">
-                                    <div className="p-2 bg-gray-100 rounded-lg">
-                                        <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <div className="font-medium text-gray-900">{method.type} ending in {method.last4}</div>
-                                        <div className="text-sm text-gray-500">Expires {method.expiry}</div>
-                                    </div>
-                                    {method.isDefault && (
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Default
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <button 
-                                        disabled={isBackendDown}
-                                        className={`text-sm font-medium ${
-                                            isBackendDown 
-                                                ? 'text-gray-400 cursor-not-allowed' 
-                                                : 'text-blue-600 hover:text-blue-800'
-                                        }`}
-                                    >
-                                        Edit
-                                    </button>
-                                    <button 
-                                        disabled={isBackendDown}
-                                        className={`text-sm font-medium ${
-                                            isBackendDown 
-                                                ? 'text-gray-400 cursor-not-allowed' 
-                                                : 'text-red-600 hover:text-red-800'
-                                        }`}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-start space-x-3">
-                            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div>
-                                <h3 className="text-sm font-medium text-blue-900">Billing Information</h3>
-                                <p className="text-sm text-blue-700 mt-1">
-                                    Your payment methods are securely stored and encrypted. You can update or remove them at any time.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
             )}
         </div>
     );
