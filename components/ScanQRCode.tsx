@@ -3,7 +3,7 @@ import QRScanner from './QRScanner';
 import type { Appointment } from '../types';
 import { AppointmentStatus } from '../types';
 import * as api from '../services/api';
-import { PageTitle, Card, Button, Spinner, Select } from './ui';
+import { PageTitle, Card, Button, Spinner, Select, Input } from './ui';
 
 export default function ScanQRCode({ addNotification }: { addNotification: (type: 'success' | 'error', message: string) => void }) {
     const [isScanning, setIsScanning] = useState(false);
@@ -12,6 +12,9 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
     const [isLoading, setIsLoading] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [patientInfo, setPatientInfo] = useState<{ name: string; patientId: number } | null>(null);
+    // Manual code entry state
+    const [manualCode, setManualCode] = useState('');
+    const [manualError, setManualError] = useState('');
 
     // Handle QR code scan success
     const handleScanSuccess = useCallback(async (decodedText: string) => {
@@ -77,6 +80,21 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
         setSelectedAppointment(null);
         setPatientInfo(null);
         setIsScanning(false);
+        setManualCode('');
+        setManualError('');
+    };
+
+    // Manual code lookup handler
+    const handleManualLookup = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setManualError('');
+        const code = manualCode.trim();
+        if (!code) {
+            setManualError('Please enter a confirmation number.');
+            return;
+        }
+        // Optionally, add lightweight format validation if needed
+        await handleScanSuccess(code);
     };
 
     // Get status badge color
@@ -126,6 +144,38 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
                             </svg>
                             Start Scanning
                         </Button>
+
+                        {/* Divider */}
+                        <div className="relative my-8">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-slate-300"></div>
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                                <span className="px-2 bg-white text-slate-500">OR</span>
+                            </div>
+                        </div>
+
+                        {/* Manual code entry */}
+                        <form onSubmit={handleManualLookup} className="max-w-md mx-auto w-full flex flex-col sm:flex-row items-stretch gap-3">
+                            <div className="flex-1">
+                                <Input
+                                    label="Enter confirmation number manually"
+                                    value={manualCode}
+                                    onChange={(e) => {
+                                        setManualCode(e.target.value);
+                                        setManualError('');
+                                    }}
+                                    placeholder="e.g., ABC-2025-12345"
+                                    error={manualError}
+                                />
+                            </div>
+                            <div className="sm:self-end">
+                                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                                    {isLoading ? 'Searching…' : 'Find Appointment'}
+                                </Button>
+                            </div>
+                        </form>
+                        <p className="text-xs text-slate-500 mt-2">If the camera isn't available, enter the code printed on the visit card.</p>
                     </div>
                 </Card>
             )}
@@ -155,7 +205,7 @@ export default function ScanQRCode({ addNotification }: { addNotification: (type
                             </div>
                             <Button variant="secondary" onClick={resetScanner}>
                                 <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                                 </svg>
                                 Scan Another Patient
                             </Button>
