@@ -1,4 +1,3 @@
-
 export enum HospitalType {
   GOVERNMENT = 'GOVERNMENT',
   PRIVATE = 'PRIVATE',
@@ -267,4 +266,30 @@ export interface UpdateUtilizationReportPayload {
     doctor?: string;
     serviceCategory?: string;
     notes?: string;
+}
+
+// Audit System Types
+export interface AuditLog {
+    id: number;
+    auditHash: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    userId: number;
+    username: string;
+    details: string;
+    metadata: string | null;
+    timestamp: string; // ISO-8601
+    ipAddress: string | null;
+    correlationId: string | null;
+}
+
+export interface AuditPage {
+    content: AuditLog[];
+    currentPage: number;
+    totalItems: number;
+    totalPages: number;
+    pageSize?: number;
+    hasNext?: boolean;
+    hasPrevious?: boolean;
 }

@@ -17,6 +17,7 @@ import * as api from './services/api';
 import MyAppointments from './components/MyAppointments';
 import ScanQRCode from './components/ScanQRCode';
 import ProviderManagement from './components/ProviderManagement';
+import AuditHistory from './components/AuditHistory';
 
 
 const useAuth = () => {
@@ -74,6 +75,7 @@ const adminNavItems = [
     { id: 'medical-records', label: 'Medical Records', icon: RecordsIcon },
     { id: 'scan-qr', label: 'Scan Visit Card', icon: QrCodeIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
+    { id: 'audit', label: 'Audit History', icon: ReportsIcon },
 ];
 
 const patientNavItems = [
@@ -84,7 +86,7 @@ const patientNavItems = [
     { id: 'my-account', label: 'My Account', icon: PatientsIcon },
 ];
 
-type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management'| 'medical-records';
+type AdminView = 'dashboard' | 'patients' | 'appointments' | 'reports' | 'analytics' | 'scan-qr' | 'provider-management'| 'medical-records' | 'audit';
 type PatientView = 'dashboard' | 'book-appointment' | 'my-records' | 'my-account' | 'my-appointments';
 
 
@@ -181,6 +183,7 @@ const AdminApp = ({ user, onLogout, addNotification }: { user: AuthUser, onLogou
             case 'scan-qr': return <ScanQRCode addNotification={addNotification} />;
             case 'reports': return <ReportsDashboard addNotification={addNotification} setActiveView={setActiveView} />;
             case 'analytics': return <AnalyticsDashboard addNotification={addNotification} />;
+            case 'audit': return <AuditHistory addNotification={(t,m)=>addNotification(t,m)} />;
             default: return <div>Select a view</div>;
         }
     };

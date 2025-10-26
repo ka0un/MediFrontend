@@ -1,4 +1,4 @@
-import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType, UtilizationReport, CreateUtilizationReportPayload, UpdateUtilizationReportPayload } from '../types';
+import type { Patient, HealthcareProvider, TimeSlot, Appointment, PaymentData, StatisticalReport, ReportFilters, MedicalRecord, AccessLog, AddPrescriptionPayload, AuthUser, AdminDashboardData, AppointmentStatus, HospitalType, UtilizationReport, CreateUtilizationReportPayload, UpdateUtilizationReportPayload, AuditPage, AuditLog } from '../types';
 import { apiClient } from './apiClient';
 
 // Legacy BASE_URL kept for file download functions that need direct fetch
@@ -275,4 +275,47 @@ export const getUtilizationReportsByDepartment = (department: string): Promise<U
  */
 export const getUtilizationReportsByDoctor = (doctor: string): Promise<UtilizationReport[]> => {
     return fetch(`${BASE_URL}/analytics/utilization-reports/filter/doctor/${doctor}`).then(res => handleResponse(res));
+};
+
+// Audit API
+export const queryAuditLogs = (filters: {
+    userId?: number;
+    username?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+    startDate?: string; // ISO-8601
+    endDate?: string;   // ISO-8601
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDirection?: 'ASC' | 'DESC';
+}): Promise<AuditPage> => {
+    const params = new URLSearchParams();
+    if (filters.userId !== undefined) params.append('userId', String(filters.userId));
+    if (filters.username) params.append('username', filters.username);
+    if (filters.action) params.append('action', filters.action);
+    if (filters.entityType) params.append('entityType', filters.entityType);
+    if (filters.entityId) params.append('entityId', filters.entityId);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    params.append('page', String(filters.page ?? 0));
+    params.append('size', String(Math.min(filters.size ?? 20, 100)));
+    if (filters.sortBy) params.append('sortBy', filters.sortBy);
+    params.append('sortDirection', filters.sortDirection ?? 'DESC');
+    return apiClient.get<AuditPage>(`/audit?${params.toString()}`);
+};
+
+export const getAuditByHash = (auditHash: string): Promise<AuditLog> => {
+    return apiClient.get<AuditLog>(`/audit/${auditHash}`);
+};
+
+export const getAuditByEntity = (entityType: string, entityId: string, page = 0, size = 20): Promise<AuditPage> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    return apiClient.get<AuditPage>(`/audit/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?${params.toString()}`);
+};
+
+export const getAuditByUser = (userId: number, page = 0, size = 20): Promise<AuditPage> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    return apiClient.get<AuditPage>(`/audit/user/${userId}?${params.toString()}`);
 };
